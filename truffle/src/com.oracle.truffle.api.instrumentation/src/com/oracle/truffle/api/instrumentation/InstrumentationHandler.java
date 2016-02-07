@@ -73,10 +73,12 @@ import com.oracle.truffle.api.source.SourceSection;
  * Central coordinator class for the Truffle instrumentation framework. Allocated once per
  * {@linkplain com.oracle.truffle.api.vm.PolyglotEngine engine}.
  */
-final class InstrumentationHandler {
+public final class InstrumentationHandler {
 
     /* Enable trace output to stdout. */
     static final boolean TRACE = Boolean.getBoolean("truffle.instrumentation.trace");
+
+    private static InstrumentationHandler globalHandler;
 
     private final Object sourceVM;
 
@@ -122,6 +124,24 @@ final class InstrumentationHandler {
         this.err = err;
         this.in = in;
         this.engineInstrumenter = new EngineInstrumenter();
+        globalHandler = this;
+    }
+
+    public static void insertInstrumentationWrapper(Node instrumentableNode) {
+        insertInstrumentationWrapper(instrumentableNode, instrumentableNode.getSourceSection());
+    }
+
+    public static void insertInstrumentationWrapper(Node instrumentableNode, SourceSection sourceSection) {
+        assert globalHandler != null : "InstrumentationHandler not yet initialized";
+
+        Node node;
+        if (instrumentableNode instanceof WrapperNode) {
+            node = ((WrapperNode) instrumentableNode).getDelegateNode();
+            invalidateWrapperImpl((WrapperNode) instrumentableNode, node);
+        } else {
+            node = instrumentableNode;
+            globalHandler.insertWrapper(node, sourceSection);
+        }
     }
 
     Object getSourceVM() {
