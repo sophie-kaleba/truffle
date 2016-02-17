@@ -152,6 +152,23 @@ public final class ProbeNode extends Node {
         }
     }
 
+    EventNode findEventNode(final EventNodeFactory factory) {
+        if (version != null && version.isValid() && chain != null) {
+            return findEventNodeInChain(factory);
+        }
+        return null;
+    }
+
+    private EventNode findEventNodeInChain(EventNodeFactory factory) {
+        EventChainNode currentChain = this.chain;
+        while (currentChain != null) {
+            if (currentChain.binding.getElement() == factory) {
+                return ((EventProviderChainNode) currentChain).eventNode;
+            }
+        }
+        return null;
+    }
+
     private EventChainNode lazyUpdate(VirtualFrame frame) {
         Assumption localVersion = this.version;
         if (localVersion == null || !localVersion.isValid()) {
