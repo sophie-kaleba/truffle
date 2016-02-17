@@ -40,15 +40,20 @@
  */
 package com.oracle.truffle.api.instrumentation;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 
 import com.oracle.truffle.api.CompilerAsserts;
 import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
+import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.TruffleLanguage.Env;
 import com.oracle.truffle.api.frame.VirtualFrame;
+import com.oracle.truffle.api.instrumentation.InstrumentableNode.WrapperNode;
 import com.oracle.truffle.api.nodes.LanguageInfo;
 import com.oracle.truffle.api.nodes.Node;
 import com.oracle.truffle.api.nodes.RootNode;
@@ -298,36 +303,82 @@ public final class EventContext {
     }
 
     /**
-     * Creates a runtime exception that when thrown is observable to the guest language application.
-     * Be aware that errors propagated to the guest application may significantly alter the behavior
-     * of the guest application influencing other instruments which may limit them ability of them
-     * to be composed. If not wrapped using this method any exception caused by an execution event
-     * instrumentation is printed to the {@link TruffleInstrument.Env#out() error stream}.
-     * <p>
-     * Propagating runtime errors is supported in the following events:
-     * <ul>
-     * <li>{@link ExecutionEventNode#onEnter(VirtualFrame) onEnter}
-     * <li>{@link ExecutionEventNode#onInputValue(VirtualFrame, EventContext, int, Object)
-     * onInputValue}
-     * <li>{@link ExecutionEventNode#onReturnExceptional(VirtualFrame, Throwable)
-     * onReturnExceptional}
-     * <li>{@link ExecutionEventNode#onReturnValue(VirtualFrame, Object) onReturnValue}
-     * <li>{@link ExecutionEventNode#onUnwind(VirtualFrame, Object) onUnwind}
-     * <li>{@link ExecutionEventNode#onDispose(VirtualFrame) onDispose}
-     * </ul>
-     * Errors may not be propagated in {@link ExecutionEventNodeFactory#create(EventContext)} as
-     * this may lead to unstable ASTs.
-     * <p>
-     * If an error is propagated all other installed execution event listeners will continue to be
-     * notified. If multiple listeners propagate errors then the first error will be propagated and
-     * later errors will be attached to the first as {@link Exception#addSuppressed(Throwable)
-     * suppressed} exception. The notification order relates to the order the bindings were
-     * installed.
-     * <p>
-     * Example usage: {@link PropagateErrorSnippets#onCreate}
+     * Returns the first found parent {@link ExecutionEventNode event node} created from a given
+     * {@link ExecutionEventNodeFactory factory}. If multiple
+     * {@link Instrumenter#attachFactory(SourceSectionFilter, ExecutionEventNodeFactory) bindings}
+     * were created with a single {@link ExecutionEventNodeFactory factory} instance then the first
+     * ExecutionEventNode which is found is returned in the order of event binding attachment.
      *
-     * @param e the exception to propagate.
-     * @since 20.0
+     * @param factory a event node factory for which to return the first event node
+     * @return the first event node found in the order of event binding attachment
+     * @since 0.13
+     */
+    @TruffleBoundary
+    public ExecutionEventNode findParentEventNode(final ExecutionEventNodeFactory factory) {
+        Node parent = getInstrumentedNode().getParent();
+        while ((parent = parent.getParent()) != null) {
+            ExecutionEventNode eventNode = findEventNode(factory, parent);
+            if (eventNode != null) {
+                return eventNode;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @return an event node from the direct parent, or null.
+     * @since 0.13
+     */
+    @TruffleBoundary
+    public ExecutionEventNode findDirectParentEventNode(final ExecutionEventNodeFactory factory) {
+        Node parent = getInstrumentedNode().getParent();
+
+        assert parent instanceof WrapperNode;  // this is the wrapper of the current node
+        parent = parent.getParent();           // this is the parent node
+        parent = parent.getParent();           // this is the wrapper of the parent node
+        return findEventNode(factory, parent);
+    }
+
+    /**
+     * Returns all first-level child event nodes created from a given
+     * {@link ExecutionEventNodeFactory factory}.
+     *
+     * @param factory an event node factory for which to return all first-level children
+     * @return all first-level children that were created from a given factory
+     * @since 0.13
+     */
+    @TruffleBoundary
+    public List<ExecutionEventNode> findChildEventNodes(final ExecutionEventNodeFactory factory) {
+        final List<ExecutionEventNode> eventNodes = new ArrayList<>();
+        Node instrumentedNode = getInstrumentedNode();
+        // TODO ideally one could use a NodeListener instead of the recursive algortihm.
+        // Unfortunately returning false in NodeVisitor#visit does not continue traversing all
+        // parents children but stops visitation completely. Bug!?
+        collectEventNodes(eventNodes, factory, instrumentedNode);
+        return Collections.unmodifiableList(eventNodes);
+    }
+
+    private void collectEventNodes(List<ExecutionEventNode> eventNodes, ExecutionEventNodeFactory factory, Node node) {
+        for (Node child : node.getChildren()) {
+            ExecutionEventNode eventNode = findEventNode(factory, child);
+            if (eventNode != null) {
+                eventNodes.add(eventNode);
+            } else if (child != null) {
+                collectEventNodes(eventNodes, factory, child);
+            }
+        }
+    }
+
+    private static ExecutionEventNode findEventNode(ExecutionEventNodeFactory factory, Node node) {
+        if (node instanceof WrapperNode) {
+            return ((WrapperNode) node).getProbeNode().findEventNode(factory);
+        }
+        return null;
+    }
+
+    /*
+     * TODO (chumer) a way to parse code in the current language and return something like a node
+     * that is directly embeddable into the AST as a @Child.
      */
     public RuntimeException createError(RuntimeException e) {
         return new InstrumentException(this, e);
