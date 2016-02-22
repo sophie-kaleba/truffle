@@ -139,6 +139,7 @@ public final class EventContext {
      *
      * @param factory a event node factory for which to return the first event node
      * @return the first event node found in the order of event binding attachment
+     * @since 0.13
      */
     @TruffleBoundary
     public ExecutionEventNode findParentEventNode(final ExecutionEventNodeFactory factory) {
@@ -153,11 +154,26 @@ public final class EventContext {
     }
 
     /**
+     * @return an event node from the direct parent, or null.
+     * @since 0.13
+     */
+    @TruffleBoundary
+    public ExecutionEventNode findDirectParentEventNode(final ExecutionEventNodeFactory factory) {
+        Node parent = getInstrumentedNode().getParent();
+
+        assert parent instanceof WrapperNode;  // this is the wrapper of the current node
+        parent = parent.getParent();           // this is the parent node
+        parent = parent.getParent();           // this is the wrapper of the parent node
+        return findEventNode(factory, parent);
+    }
+
+    /**
      * Returns all first-level child event nodes created from a given
      * {@link ExecutionEventNodeFactory factory}.
      *
      * @param factory an event node factory for which to return all first-level children
      * @return all first-level children that were created from a given factory
+     * @since 0.13
      */
     @TruffleBoundary
     public List<ExecutionEventNode> findChildEventNodes(final ExecutionEventNodeFactory factory) {
