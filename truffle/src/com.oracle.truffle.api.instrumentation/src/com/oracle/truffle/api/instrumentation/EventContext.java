@@ -28,9 +28,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import com.oracle.truffle.api.CallTarget;
 import com.oracle.truffle.api.CompilerAsserts;
+import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.TruffleLanguage.Env;
 import com.oracle.truffle.api.frame.VirtualFrame;
@@ -210,7 +212,6 @@ public final class EventContext {
         return new UnwindException(info, unwindBinding);
     }
 
-
     /**
      * Returns the first found parent {@link ExecutionEventNode event node} created from a given
      * {@link ExecutionEventNodeFactory factory}. If multiple
@@ -220,6 +221,7 @@ public final class EventContext {
      *
      * @param factory a event node factory for which to return the first event node
      * @return the first event node found in the order of event binding attachment
+     * @since 0.13
      */
     @TruffleBoundary
     public ExecutionEventNode findParentEventNode(final ExecutionEventNodeFactory factory) {
@@ -232,13 +234,28 @@ public final class EventContext {
         }
         return null;
     }
-    
+
+    /**
+     * @return an event node from the direct parent, or null.
+     * @since 0.13
+     */
+    @TruffleBoundary
+    public ExecutionEventNode findDirectParentEventNode(final ExecutionEventNodeFactory factory) {
+        Node parent = getInstrumentedNode().getParent();
+
+        assert parent instanceof WrapperNode;  // this is the wrapper of the current node
+        parent = parent.getParent();           // this is the parent node
+        parent = parent.getParent();           // this is the wrapper of the parent node
+        return findEventNode(factory, parent);
+    }
+
     /**
      * Returns all first-level child event nodes created from a given
      * {@link ExecutionEventNodeFactory factory}.
      *
      * @param factory an event node factory for which to return all first-level children
      * @return all first-level children that were created from a given factory
+     * @since 0.13
      */
     @TruffleBoundary
     public List<ExecutionEventNode> findChildEventNodes(final ExecutionEventNodeFactory factory) {
@@ -250,7 +267,7 @@ public final class EventContext {
         collectEventNodes(eventNodes, factory, instrumentedNode);
         return Collections.unmodifiableList(eventNodes);
     }
-    
+
     private void collectEventNodes(List<ExecutionEventNode> eventNodes, ExecutionEventNodeFactory factory, Node node) {
         for (Node child : node.getChildren()) {
             ExecutionEventNode eventNode = findEventNode(factory, child);
@@ -261,7 +278,7 @@ public final class EventContext {
             }
         }
     }
-    
+
     private static ExecutionEventNode findEventNode(ExecutionEventNodeFactory factory, Node node) {
         if (node instanceof WrapperNode) {
             return ((WrapperNode) node).getProbeNode().findEventNode(factory);
