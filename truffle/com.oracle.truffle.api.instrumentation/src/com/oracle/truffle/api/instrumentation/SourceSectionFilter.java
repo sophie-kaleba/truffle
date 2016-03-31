@@ -613,18 +613,13 @@ public final class SourceSectionFilter {
             @SuppressWarnings("deprecation")
             SourceSectionEquals(SourceSection... sourceSection) {
                 this.sourceSections = sourceSection;
-                // clear tags
-                for (int i = 0; i < sourceSection.length; i++) {
-                    sourceSections[i] = sourceSection[i].withTags();
-                }
             }
 
             @Override
             @SuppressWarnings("deprecation")
             boolean isIncluded(Set<Class<?>> providedTags, Node instrumentedNode, SourceSection s) {
-                SourceSection withoutTags = s.withTags();
                 for (SourceSection compareSection : sourceSections) {
-                    if (withoutTags.equals(compareSection)) {
+                    if (s.equals(compareSection)) {
                         return true;
                     }
                 }
@@ -666,10 +661,6 @@ public final class SourceSectionFilter {
             @SuppressWarnings("deprecation")
             RootSourceSectionEquals(SourceSection... sourceSection) {
                 this.sourceSections = sourceSection;
-                // clear tags
-                for (int i = 0; i < sourceSection.length; i++) {
-                    sourceSections[i] = sourceSection[i].withTags();
-                }
             }
 
             @Override
@@ -684,9 +675,8 @@ public final class SourceSectionFilter {
                     return false;
                 }
 
-                SourceSection withoutTags = rootSection.withTags();
                 for (SourceSection compareSection : sourceSections) {
-                    if (withoutTags.equals(compareSection)) {
+                    if (rootSection.equals(compareSection)) {
                         return true;
                     }
                 }

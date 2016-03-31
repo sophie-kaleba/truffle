@@ -595,17 +595,6 @@ public abstract class Source {
         return createSectionImpl(identifier, startLine, startColumn, charIndex, length, SourceSection.EMTPY_TAGS);
     }
 
-    /**
-     * @deprecated tags are now determined by {@link Node#isTaggedWith(Class)}. Use
-     *             {@link #createSection(String, int, int, int, int)} instead.
-     * @since 0.12
-     */
-    @Deprecated
-    public final SourceSection createSection(String identifier, int startLine, int startColumn, int charIndex, int length, String... tags) {
-        checkRange(charIndex, length);
-        return createSectionImpl(identifier, startLine, startColumn, charIndex, length, tags);
-    }
-
     private SourceSection createSectionImpl(String identifier, int startLine, int startColumn, int charIndex, int length, String[] tags) {
         return new SourceSection(null, this, identifier, startLine, startColumn, charIndex, length, tags);
     }

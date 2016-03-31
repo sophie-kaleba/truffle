@@ -24,10 +24,6 @@
  */
 package com.oracle.truffle.api.source;
 
-import java.util.Arrays;
-
-import com.oracle.truffle.api.nodes.Node;
-
 /**
  * Description of contiguous section of text within a {@link Source} of program code; supports
  * multiple modes of access to the text and its location. A special
@@ -52,7 +48,6 @@ public final class SourceSection {
     private final int charIndex;
     private final int charLength;
     private final String kind;
-    private final String[] tags;
 
     /**
      * Creates a new object representing a contiguous text section within the source code of a guest
@@ -86,7 +81,6 @@ public final class SourceSection {
         this.startColumn = startColumn;
         this.charIndex = charIndex;
         this.charLength = charLength;
-        this.tags = tags;
         assert tagsAreNonNullAndInterned(tags) : "All tags set for a source section must be interned and non-null.";
     }
 
@@ -101,22 +95,6 @@ public final class SourceSection {
             }
         }
         return true;
-    }
-
-    /**
-     * @deprecated tags are now determined by {@link Node#isTaggedWith(Class)}
-     * @since 0.12
-     */
-    @Deprecated
-    @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
-    public boolean hasTag(String tag) {
-        assert tag.intern() == tag;
-        for (int i = 0; i < tags.length; i++) {
-            if (tags[i] == tag) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
@@ -264,32 +242,6 @@ public final class SourceSection {
         }
     }
 
-    /**
-     * @deprecated tags are now determined by {@link Node#isTaggedWith(Class)}
-     * @since 0.12
-     */
-    @Deprecated
-    public SourceSection withTags(@SuppressWarnings("hiding") String... tags) {
-        if (sameTags(tags)) {
-            // optimize copying of tags if tags are unchanged
-            return this;
-        }
-        return new SourceSection(kind, source, identifier, startLine, startColumn, charIndex, charLength, tags);
-    }
-
-    @SuppressFBWarnings("ES_COMPARING_STRINGS_WITH_EQ")
-    private boolean sameTags(String... t) {
-        if (t.length == tags.length) {
-            for (int i = 0; i < tags.length; i++) {
-                if (t[i] != tags[i]) {
-                    return false;
-                }
-            }
-            return true;
-        }
-        return false;
-    }
-
     /** @since 0.8 or earlier */
     @Override
     public int hashCode() {
@@ -301,7 +253,6 @@ public final class SourceSection {
         result = prime * result + ((source == null) ? 0 : source.hashCode());
         result = prime * result + startColumn;
         result = prime * result + startLine;
-        result = prime * result + Arrays.hashCode(tags);
         return result;
     }
 
@@ -344,16 +295,6 @@ public final class SourceSection {
         }
         if (startLine != other.startLine) {
             return false;
-        }
-
-        String[] otherTags = other.tags;
-        if (tags.length != otherTags.length) {
-            return false;
-        }
-        for (int i = 0; i < tags.length; i++) {
-            if (tags[i] != otherTags[i]) {
-                return false;
-            }
         }
         return true;
     }
