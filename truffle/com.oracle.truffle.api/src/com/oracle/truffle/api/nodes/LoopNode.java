@@ -44,29 +44,29 @@ import com.oracle.truffle.api.frame.VirtualFrame;
  * <pre>
  * <code>
  * public class WhileNode extends GuestLanguageNode {
- *
+ * 
  *     &#064;{@link Node.Child} private {@link LoopNode} loop;
- *
+ * 
  *     public WhileNode(GuestLanguageNode conditionNode, GuestLanguageNode bodyNode) {
  *         loop = Truffle.getRuntime().createLoopNode(new WhileRepeatingNode(conditionNode, bodyNode));
  *     }
- *
+ * 
  *     &#064;Override
  *     public Object execute({@link VirtualFrame} frame) {
  *         loop.executeLoop(frame);
  *         return null;
  *     }
- *
+ * 
  *     private static class WhileRepeatingNode extends {@link Node} implements {@link RepeatingNode} {
- *
+ * 
  *         &#064;{@link Node.Child} private GuestLanguageNode conditionNode;
  *         &#064;{@link Node.Child} private GuestLanguageNode bodyNode;
- *
+ * 
  *         public WhileRepeatingNode(GuestLanguageNode conditionNode, GuestLanguageNode bodyNode) {
  *             this.conditionNode = conditionNode;
  *             this.bodyNode = bodyNode;
  *         }
- *
+ * 
  *         public boolean executeRepeating({@link VirtualFrame} frame) {
  *             if ((boolean) conditionNode.execute(frame)) {
  *                 try {
@@ -85,14 +85,14 @@ import com.oracle.truffle.api.frame.VirtualFrame;
  *             }
  *         }
  *     }
- *
+ * 
  * }
- *
+ * 
  * // substitute with a guest language node type
  * public abstract class GuestLanguageNode extends {@link Node} {
- *
+ * 
  *     public abstract Object execute({@link VirtualFrame} frame);
- *
+ * 
  * }
  * // thrown by guest language continue statements
  * public final class ContinueException extends {@link ControlFlowException} {}
@@ -136,7 +136,7 @@ public abstract class LoopNode extends Node {
 
     /**
      * <p>
-     * Reports the execution count of a loop for which a no {@link LoopNode} was used. The
+     * Reports the execution count of a loop for which a non-{@link LoopNode} was used. The
      * optimization heuristics can use the loop count from non Truffle loops to guide compilation
      * and inlining better. Do not use {@link LoopNode} and {@link #reportLoopCount(Node, int)} at
      * the same time for one loop.
@@ -156,7 +156,7 @@ public abstract class LoopNode extends Node {
      *         LoopNode.reportLoopCount(data.length);
      *     }
      * }
-     *
+     * 
      * </pre>
      * </code>
      * </p>
