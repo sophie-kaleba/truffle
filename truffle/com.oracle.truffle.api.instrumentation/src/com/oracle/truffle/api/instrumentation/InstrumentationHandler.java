@@ -855,6 +855,11 @@ public final class InstrumentationHandler {
         }
 
         @Override
+        public boolean isTaggedWith(Node node, Class<?> tag) {
+            return AccessorInstrumentHandler.nodesAccess().isTaggedWith(node, tag);
+        }
+
+        @Override
         void verifyFilter(SourceSectionFilter filter) {
         }
 
@@ -991,6 +996,11 @@ public final class InstrumentationHandler {
         @Override
         public Set<Class<?>> queryTags(Node node) {
             return queryTagsImpl(node, languageInfo);
+        }
+
+        @Override
+        public boolean isTaggedWith(Node node, Class<?> tag) {
+            return AccessorInstrumentHandler.nodesAccess().isTaggedWith(node, tag);
         }
 
         @Override
