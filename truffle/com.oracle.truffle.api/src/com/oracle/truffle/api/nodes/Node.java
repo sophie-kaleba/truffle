@@ -561,7 +561,7 @@ public abstract class Node implements NodeInterface, Cloneable {
      *         <code>false</code>.
      * @since 0.12
      */
-    protected boolean isTaggedWith(Class<?> tag) {
+    public boolean isTaggedWith(Class<?> tag) {
         return false;
     }
 
