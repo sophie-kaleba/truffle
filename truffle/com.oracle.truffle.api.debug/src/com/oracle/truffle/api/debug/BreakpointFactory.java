@@ -330,8 +330,8 @@ final class BreakpointFactory {
                         changeState(ENABLED);
                         break;
                     case DISABLED_UNRESOLVED:
-                        assert enabled : SHOULD_NOT_HAPPEN;
-                        doSetEnabled(true);
+// assert enabled : SHOULD_NOT_HAPPEN;
+                        doSetEnabled(enabled);
                         changeState(DISABLED_UNRESOLVED);
                         break;
                     case DISPOSED:
