@@ -231,6 +231,10 @@ public final class Debugger {
         throw new UnsupportedOperationException();
     }
 
+    public Breakpoint getBreakpoint(LineLocation line) {
+        return breakpoints.get(line);
+    }
+
     /**
      * Gets all existing breakpoints, whatever their status, in natural sorted order. Modification
      * save.
@@ -288,7 +292,8 @@ public final class Debugger {
      * <li>User breakpoints are enabled.</li>
      * <li>Execution will continue until either:
      * <ol>
-     * <li>execution arrives at the nearest enclosing call site on the stack, <strong>or</strong></li>
+     * <li>execution arrives at the nearest enclosing call site on the stack, <strong>or</strong>
+     * </li>
      * <li>execution completes.</li>
      * </ol>
      * <li>StepOut mode persists only through one resumption, and reverts by default to Continue
