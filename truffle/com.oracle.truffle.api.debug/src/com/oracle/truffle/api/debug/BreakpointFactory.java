@@ -255,10 +255,10 @@ final class BreakpointFactory {
 
     BreakpointImpl createBreakpoint(Object key, SourceSectionFilter query, int ignoreCount, boolean isOneShot) {
         BreakpointImpl breakpoint = new BreakpointImpl(key, query, ignoreCount, isOneShot);
-        // Only register the listener after the breakpoint has been partially
-        // constructed. Otherwise, we can't be sure that the assumptions are visible.
-        // The need to be visible, because another thread might access them,
-        // which lead to a race with object initialization
+        // Register listener after breakpoint has been constructed and JMM
+        // allows for safe publication. Otherwise, we can't be sure that the
+        // assumption fields are visible by other threads, which would lead to
+        // a race with object initialization.
         breakpoint.binding = instrumenter.attachListener(breakpoint.locationQuery, new BreakpointListener(breakpoint));
         return breakpoint;
     }
@@ -405,7 +405,7 @@ final class BreakpointFactory {
             assert conditionSource != null;
             final Node instrumentedNode = context.getInstrumentedNode();
             if (condLangClass == null) {
-                condLangClass = Debugger.ACCESSOR.findLanguage(instrumentedNode);
+                condLangClass = Debugger.AccessorDebug.nodesAccess().findLanguage(instrumentedNode.getRootNode());
                 if (condLangClass == null) {
                     warningLog.addWarning("Unable to find language for condition: \"" + conditionSource.getCode() + "\" at " + getLocationDescription());
                     return null;
