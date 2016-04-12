@@ -638,7 +638,7 @@ public final class InstrumentationHandler {
 
         @Override
         public boolean isTaggedWith(Node node, Class<?> tag) {
-            return ACCESSOR.isTaggedWith(node, tag);
+            return AccessorInstrumentHandler.nodesAccess().isTaggedWith(node, tag);
         }
 
         @Override
@@ -744,7 +744,7 @@ public final class InstrumentationHandler {
 
         @Override
         public boolean isTaggedWith(Node node, Class<?> tag) {
-            return ACCESSOR.isTaggedWith(node, tag);
+            return AccessorInstrumentHandler.nodesAccess().isTaggedWith(node, tag);
         }
 
         @Override
