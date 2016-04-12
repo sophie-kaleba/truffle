@@ -136,9 +136,7 @@ public final class EventContext {
 
         assert parent instanceof WrapperNode;  // this is the wrapper of the current node
         parent = parent.getParent();           // this is the parent node
-        parent = parent.getParent();
-        assert parent instanceof WrapperNode;  // this is the wrapper of the parent node
-
+        parent = parent.getParent();           // this is the wrapper of the parent node
         return findEventNode(factory, parent);
     }
 
