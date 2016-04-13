@@ -79,6 +79,10 @@ public final class REPLServer {
 
     private static int nextBreakpointUID = 0;
 
+    public PolyglotEngine getEngine() {
+        return engine;
+    }
+
     // Language-agnostic
     private final PolyglotEngine engine;
     private final Debugger db;
