@@ -87,6 +87,10 @@ public final class REPLServer {
         return engine;
     }
 
+    public Debugger getDebugger() {
+        return db;
+    }
+
     // Language-agnostic
     private final PolyglotEngine engine;
     private final Debugger db;
