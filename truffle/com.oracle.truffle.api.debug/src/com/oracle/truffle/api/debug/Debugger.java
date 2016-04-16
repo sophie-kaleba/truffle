@@ -278,8 +278,8 @@ public final class Debugger {
      * </ul>
      */
     @TruffleBoundary
-    void prepareContinue(int depth) {
-        getCurrentDebugContext().setAction(depth, new Continue());
+    void prepareContinue(DebugExecutionContext context, int depth) {
+        context.setAction(depth, new Continue());
     }
 
     /**
@@ -299,11 +299,11 @@ public final class Debugger {
      * @throws IllegalArgumentException if the specified number is {@code <= 0}
      */
     @TruffleBoundary
-    void prepareStepInto(int stepCount) {
+    void prepareStepInto(DebugExecutionContext context, int stepCount) {
         if (stepCount <= 0) {
             throw new IllegalArgumentException();
         }
-        getCurrentDebugContext().setAction(new StepInto(stepCount));
+        context.setAction(new StepInto(stepCount));
     }
 
     /**
@@ -321,8 +321,8 @@ public final class Debugger {
      * </ul>
      */
     @TruffleBoundary
-    void prepareStepOut() {
-        getCurrentDebugContext().setAction(new StepOut());
+    void prepareStepOut(DebugExecutionContext context) {
+        context.setAction(new StepOut());
     }
 
     /**
@@ -344,11 +344,11 @@ public final class Debugger {
      * @throws IllegalArgumentException if the specified number is {@code <= 0}
      */
     @TruffleBoundary
-    void prepareStepOver(int stepCount) {
+    void prepareStepOver(DebugExecutionContext context, int stepCount) {
         if (stepCount <= 0) {
             throw new IllegalArgumentException();
         }
-        getCurrentDebugContext().setAction(new StepOver(stepCount));
+        context.setAction(new StepOver(stepCount));
     }
 
     Instrumenter getInstrumenter() {
@@ -758,7 +758,7 @@ public final class Debugger {
      * <p>
      * Each instance is single-use.
      */
-    private final class DebugExecutionContext {
+    public final class DebugExecutionContext {
 
         // Previous halted context in stack
         private final DebugExecutionContext predecessor;
@@ -802,6 +802,10 @@ public final class Debugger {
             if (TRACE) {
                 trace("NEW DEBUG CONTEXT level=" + level);
             }
+        }
+
+        public Debugger getDebugger() {
+            return Debugger.this;
         }
 
         /**
@@ -895,7 +899,7 @@ public final class Debugger {
 
             try {
                 // Pass control to the debug client with current execution suspended
-                SuspendedEvent event = new SuspendedEvent(Debugger.this, haltedEventContext.getInstrumentedNode(), haltedFrame, contextStack, recentWarnings);
+                SuspendedEvent event = new SuspendedEvent(getCurrentDebugContext(), haltedEventContext.getInstrumentedNode(), haltedFrame, contextStack, recentWarnings);
                 AccessorDebug.engineAccess().dispatchEvent(engine, event);
                 if (event.isKillPrepared()) {
                     trace("KILL");
@@ -972,7 +976,7 @@ public final class Debugger {
         // Push a new execution context onto stack
         DebugExecutionContext context = new DebugExecutionContext(execSource, getCurrentDebugContext(), depth);
         setCurrentDebugContext(context);
-        prepareContinue(depth);
+        prepareContinue(context, depth);
         context.trace("BEGIN EXECUTION");
     }
 
@@ -993,10 +997,10 @@ public final class Debugger {
      * @return
      * @throws IOException
      */
-    Object evalInContext(SuspendedEvent ev, String code, FrameInstance frameInstance) throws IOException {
+    Object evalInContext(DebugExecutionContext context, SuspendedEvent ev,
+                    String code, FrameInstance frameInstance) throws IOException {
         try {
             if (frameInstance == null) {
-                DebugExecutionContext context = getCurrentDebugContext();
                 return AccessorDebug.langs().evalInContext(engine, ev, code, context.haltedEventContext.getInstrumentedNode(), context.haltedFrame);
             } else {
                 return AccessorDebug.langs().evalInContext(engine, ev, code, frameInstance.getCallNode(), frameInstance.getFrame(FrameAccess.MATERIALIZE, true).materialize());
