@@ -92,8 +92,10 @@ public final class ExecutionEvent {
      * 
      * @since 0.9
      */
+    // TODO: this needs the execution context
     public void prepareContinue() {
-        getDebugger().prepareContinue(-1);
+        throw new RuntimeException("Not Yet Implemented. Needs execution context.");
+// getDebugger().prepareContinue(-1);
     }
 
     /**
@@ -113,8 +115,10 @@ public final class ExecutionEvent {
      * @throws IllegalArgumentException if the specified number is {@code <= 0}
      * @since 0.9
      */
+    // TODO: this needs the execution context
     public void prepareStepInto() {
-        getDebugger().prepareStepInto(1);
+        throw new RuntimeException("Not Yet Implemented. Needs execution context.");
+// getDebugger().prepareStepInto(1);
     }
 
     synchronized void dispose() {
