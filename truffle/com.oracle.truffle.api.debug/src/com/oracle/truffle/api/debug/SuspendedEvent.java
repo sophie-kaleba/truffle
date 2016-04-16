@@ -31,6 +31,7 @@ import java.util.List;
 
 import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.RootCallTarget;
+import com.oracle.truffle.api.debug.Debugger.DebugExecutionContext;
 import com.oracle.truffle.api.debug.Debugger.HaltPosition;
 import com.oracle.truffle.api.frame.FrameInstance;
 import com.oracle.truffle.api.frame.MaterializedFrame;
@@ -64,7 +65,7 @@ public final class SuspendedEvent {
         }
     }
 
-    private final Debugger debugger;
+    private final DebugExecutionContext context;
     private final Node haltedNode;
     private final HaltPosition haltedPosition;
     private final MaterializedFrame haltedFrame;
@@ -72,8 +73,8 @@ public final class SuspendedEvent {
     private final List<String> warnings;
     private volatile boolean kill;
 
-    SuspendedEvent(Debugger debugger, Node haltedNode, HaltPosition haltedPosition, MaterializedFrame haltedFrame, List<FrameInstance> stack, List<String> warnings) {
-        this.debugger = debugger;
+    SuspendedEvent(DebugExecutionContext context, Node haltedNode, HaltPosition haltedPosition, MaterializedFrame haltedFrame, List<FrameInstance> stack, List<String> warnings) {
+        this.context = context;
         this.haltedNode = haltedNode;
         this.haltedPosition = haltedPosition;
         this.haltedFrame = haltedFrame;
@@ -94,7 +95,7 @@ public final class SuspendedEvent {
      * @since 0.9
      */
     public Debugger getDebugger() {
-        return debugger;
+        return context.getDebugger();
     }
 
     /**
@@ -158,7 +159,7 @@ public final class SuspendedEvent {
      * @since 0.9
      */
     public void prepareContinue() {
-        debugger.prepareContinue(-1);
+        context.getDebugger().prepareContinue(context, -1);
     }
 
     /**
@@ -199,7 +200,7 @@ public final class SuspendedEvent {
      * @since 0.9
      */
     public void prepareStepInto(int stepCount) {
-        debugger.prepareStepInto(stepCount);
+        context.getDebugger().prepareStepInto(context, stepCount);
     }
 
     /**
@@ -228,7 +229,7 @@ public final class SuspendedEvent {
      * @since 0.9
      */
     public void prepareStepOut() {
-        debugger.prepareStepOut();
+        context.getDebugger().prepareStepOut(context);
     }
 
     /**
@@ -269,7 +270,7 @@ public final class SuspendedEvent {
      * @since 0.9
      */
     public void prepareStepOver(int stepCount) {
-        debugger.prepareStepOver(stepCount);
+        context.getDebugger().prepareStepOver(context, stepCount);
     }
 
     /**
@@ -288,7 +289,7 @@ public final class SuspendedEvent {
         if (!stack.contains(frameInstance)) {
             throw new IllegalArgumentException();
         }
-        return debugger.evalInContext(this, code, frameInstance);
+        return context.getDebugger().evalInContext(context, this, code, frameInstance);
     }
 
     /**
