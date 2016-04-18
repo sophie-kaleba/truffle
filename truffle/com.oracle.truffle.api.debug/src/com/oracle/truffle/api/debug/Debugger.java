@@ -758,7 +758,7 @@ public final class Debugger {
      * <p>
      * Each instance is single-use.
      */
-    public final class DebugExecutionContext {
+    final class DebugExecutionContext {
 
         // Previous halted context in stack
         private final DebugExecutionContext predecessor;
