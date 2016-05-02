@@ -386,29 +386,33 @@ public final class InstrumentationHandler {
             trace("BEGIN: Visit root %s wrappers for %s%n", visitor, root.toString());
         }
 
-        visitor.root = root;
-        visitor.providedTags = getProvidedTags(root);
-        try {
-            if (visitor.shouldVisit()) {
-                if (TRACE) {
-                    trace("BEGIN: Traverse root %s wrappers for %s%n", visitor, root.toString());
-                }
-                // found a filter that matched
-                root.atomic(new Runnable() {
-                    public void run() {
-                        root.accept(visitor);
+        synchronized (visitor) {
+            visitor.root = root;
+            visitor.providedTags = getProvidedTags(root);
+            assert visitor.providedTags != null;
+
+            try {
+                if (visitor.shouldVisit()) {
+                    if (TRACE) {
+                        trace("BEGIN: Traverse root %s wrappers for %s%n", visitor, root.toString());
                     }
-                });
-                if (TRACE) {
-                    trace("END: Traverse root %s wrappers for %s%n", visitor, root.toString());
+                    // found a filter that matched
+                    root.atomic(new Runnable() {
+                        public void run() {
+                            root.accept(visitor);
+                        }
+                    });
+                    if (TRACE) {
+                        trace("END: Traverse root %s wrappers for %s%n", visitor, root.toString());
+                    }
                 }
+                if (TRACE) {
+                    trace("END: Visited root %s wrappers for %s%n", visitor, root.toString());
+                }
+            } finally {
+                visitor.root = null;
+                visitor.providedTags = null;
             }
-            if (TRACE) {
-                trace("END: Visited root %s wrappers for %s%n", visitor, root.toString());
-            }
-        } finally {
-            visitor.root = null;
-            visitor.providedTags = null;
         }
     }
 
@@ -534,6 +538,8 @@ public final class InstrumentationHandler {
         }
 
         public final boolean visit(Node node) {
+            assert providedTags != null;
+
             SourceSection sourceSection = node.getSourceSection();
             if (isInstrumentableNode(node, sourceSection)) {
                 List<EventBinding<?>> b = bindings;
