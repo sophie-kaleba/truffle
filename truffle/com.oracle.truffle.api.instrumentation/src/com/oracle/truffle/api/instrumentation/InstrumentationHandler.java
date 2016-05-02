@@ -476,20 +476,28 @@ public final class InstrumentationHandler {
             trace("BEGIN: Visit root %s for %s%n", root.toString(), visitor);
         }
 
-        visitor.root = root;
-        visitor.providedTags = getProvidedTags(root);
+        synchronized (visitor) {
+            visitor.root = root;
+            visitor.providedTags = getProvidedTags(root);
+            assert visitor.providedTags != null;
 
-        if (visitor.shouldVisit()) {
-            if (TRACE) {
+            try {
+                if (visitor.shouldVisit()) {
+                    if (TRACE) {
                 trace("BEGIN: Traverse root %s for %s%n", root.toString(), visitor);
-            }
-            root.accept(visitor);
-            if (TRACE) {
+                    }
+                            root.accept(visitor);
+                    if (TRACE) {
                 trace("END: Traverse root %s for %s%n", root.toString(), visitor);
-            }
-        }
-        if (TRACE) {
+                    }
+                }
+                if (TRACE) {
             trace("END: Visited root %s for %s%n", root.toString(), visitor);
+                }
+            } finally {
+                visitor.root = null;
+                visitor.providedTags = null;
+            }
         }
     }
 
@@ -624,6 +632,8 @@ public final class InstrumentationHandler {
         }
 
         public final boolean visit(Node node) {
+            assert providedTags != null;
+
             SourceSection sourceSection = node.getSourceSection();
             if (isInstrumentableNode(node, sourceSection)) {
                 // no locking required for these atomic reference arrays
