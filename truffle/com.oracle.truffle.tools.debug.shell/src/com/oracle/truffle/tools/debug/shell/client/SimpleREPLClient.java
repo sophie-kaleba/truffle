@@ -45,9 +45,9 @@ import com.oracle.truffle.tools.debug.shell.server.REPLServer;
  * A very simple line-oriented, language-agnostic debugging client shell: the first step toward a
  * general, extensible debugging framework designed to be adapted for remote debugging.
  * <p>
- * The architecture of this debugging framework is modeled loosely on <a
- * href="https://github.com/clojure/tools.nrepl">nREPL</a>, a network REPL developed by the Clojure
- * community with a focus on generality:
+ * The architecture of this debugging framework is modeled loosely on
+ * <a href="https://github.com/clojure/tools.nrepl">nREPL</a>, a network REPL developed by the
+ * Clojure community with a focus on generality:
  * <ul>
  * <li>Client and (possibly remote) server communicate via <em>messages</em> carried over some
  * <em>transport</em>;</li>
@@ -63,9 +63,6 @@ import com.oracle.truffle.tools.debug.shell.server.REPLServer;
  * <p>
  * In order to get
  * <ol>
- * <li>A debugging session should start from this shell, but there is no machinery in place for
- * doing that; instead, an entry into the language implementation creates both the server and this
- * shell;</li>
  * <li>The current startup sequence is based on method calls, not messages;</li>
  * <li>Only a very few request types and keys are implemented, omitting for example request and
  * session ids;</li>
@@ -279,6 +276,10 @@ public class SimpleREPLClient implements com.oracle.truffle.tools.debug.shell.RE
         private int selectedFrameNumber = 0;
 
         private String currentPrompt;
+
+        // A execution context stacked on top of this one was explicitly
+        // killed, and this context will receive the resulting exception.
+        private boolean killPending;
 
         /**
          * Create a new context on the occasion of an execution halting.
@@ -520,7 +521,12 @@ public class SimpleREPLClient implements com.oracle.truffle.tools.debug.shell.RE
             }
         }
 
-        public void displayKillMessage(String message) {
+        public void notifyKilled() {
+            // A kill will not be received until after
+            // This context is released, so the exception
+            // must be handles specially by the
+            // context that will catch it.
+            predecessor.killPending = true;
             writer.println(clientContext.currentPrompt + " killed");
         }
 
@@ -607,7 +613,16 @@ public class SimpleREPLClient implements com.oracle.truffle.tools.debug.shell.RE
                     } else {
                         assert false; // Should not happen.
                     }
-
+                } catch (ThreadDeath ex) {
+                    if (ex.getClass() != ThreadDeath.class && killPending) {
+                        // If the previous context was killed by REPL command, then
+                        // assume this exception is the result and the REPL should
+                        // continue debugging in this context.
+                        killPending = false;
+                    } else {
+                        // A legitimate use of the exception
+                        throw ex;
+                    }
                 } catch (REPLContinueException ex) {
                     break;
                 } catch (IOException e) {

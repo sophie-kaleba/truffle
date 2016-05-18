@@ -24,7 +24,8 @@
  */
 package com.oracle.truffle.api.debug;
 
-import java.util.concurrent.Callable;
+import com.oracle.truffle.api.source.Source;
+import com.oracle.truffle.api.vm.PolyglotEngine;
 
 /**
  * This event is delivered to all
@@ -38,20 +39,21 @@ import java.util.concurrent.Callable;
  * {@link IllegalStateException}. One can however obtain reference to {@link Debugger} instance and
  * keep it to further manipulate with debugging capabilities of the
  * {@link com.oracle.truffle.api.vm.PolyglotEngine} when it is running.
- *
+ * 
  * @since 0.9
  */
 @SuppressWarnings("javadoc")
 public final class ExecutionEvent {
-    private Object debugger;
+    private Object[] debugger;
+    private final PolyglotEngine engine;
+    private final int currentDepth;
+    private final Source source;
 
-    // TODO: this needs the execution context
-    ExecutionEvent(Debugger debugger) {
+    ExecutionEvent(PolyglotEngine engine, int currentDepth, Object[] debugger, Source source) {
         this.debugger = debugger;
-    }
-
-    ExecutionEvent(Callable<Debugger> debugger) {
-        this.debugger = debugger;
+        this.engine = engine;
+        this.currentDepth = currentDepth;
+        this.source = source;
     }
 
     /**
@@ -63,16 +65,17 @@ public final class ExecutionEvent {
      *         ones in the same {@link com.oracle.truffle.api.vm.PolyglotEngine}.
      * @since 0.9
      */
-    public Debugger getDebugger() {
-        if (debugger instanceof Debugger) {
-            return (Debugger) debugger;
+    public synchronized Debugger getDebugger() {
+        if (debugger == null) {
+            throw new IllegalStateException("Event was disposed.");
         }
-        try {
-            debugger = ((Callable<?>) debugger).call();
-        } catch (Exception ex) {
-            throw new IllegalStateException(ex);
+        if (debugger[0] instanceof Debugger) {
+            return (Debugger) debugger[0];
         }
-        return (Debugger) debugger;
+        Debugger dbg = Debugger.find(engine, true);
+        dbg.executionStarted(currentDepth, source);
+        debugger[0] = dbg;
+        return dbg;
     }
 
     /**
@@ -86,7 +89,7 @@ public final class ExecutionEvent {
      * <li>execution completes.</li>
      * </ol>
      * </ul>
-     *
+     * 
      * @since 0.9
      */
     // TODO: this needs the execution context
@@ -116,5 +119,9 @@ public final class ExecutionEvent {
     public void prepareStepInto() {
         throw new RuntimeException("Not Yet Implemented. Needs execution context.");
 // getDebugger().prepareStepInto(1);
+    }
+
+    synchronized void dispose() {
+        debugger = null;
     }
 }

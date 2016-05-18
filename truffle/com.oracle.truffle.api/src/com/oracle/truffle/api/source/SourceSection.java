@@ -29,6 +29,10 @@ package com.oracle.truffle.api.source;
  * multiple modes of access to the text and its location. A special
  * {@link #createUnavailable(java.lang.String, java.lang.String) null value} should be used for code
  * that is not available from source, e.g language builtins.
+ * <p>
+ * Equality of instances is defined in terms of equivalent locations: the same start and length in
+ * equal source code instances.
+ *
  *
  * @see Source#createSection(String, int, int, int, int)
  * @see Source#createSection(String, int, int, int)
@@ -64,6 +68,8 @@ public final class SourceSection {
      * a character index. The (row,column) coordinates of a newline character should never appear in
      * a text section.
      * <p>
+     * Equality of instances is defined in terms of equivalent locations: the same start and length
+     * in equal source code instances.
      *
      * @param source object representing the complete source program that contains this section
      * @param identifier an identifier used when printing the section

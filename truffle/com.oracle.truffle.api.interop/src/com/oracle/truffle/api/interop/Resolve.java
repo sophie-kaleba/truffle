@@ -36,11 +36,11 @@ import com.oracle.truffle.api.frame.VirtualFrame;
  * messages}.
  *
  * This node needs to be an abstract class. Sub-classes will be automatically generated, which is
- * similar to Truffle's DSL for node specialization. The node needs to define abstract
- * <code>accept</code> methods, which implement the node's behaviour. The first argument of
- * <code>accept</code> can be a {@link VirtualFrame} (optional). The second argument of
- * <code>accept</code> needs to be the receiver object, i.e., a {@link TruffleObject}. Afterwards,
- * the arguments of the message follow. For example:
+ * similar to Truffle's DSL for node specialization. The node needs to define <code>accept</code>
+ * methods, which implement the node's behaviour. The first argument of <code>accept</code> can be a
+ * {@link VirtualFrame} (optional). The second argument of <code>accept</code> needs to be the
+ * receiver object, i.e., a {@link TruffleObject}. Afterwards, the arguments of the message follow.
+ * For example:
  *
  * {@link com.oracle.truffle.api.dsl.test.interop.Snippets.ExampleTruffleObjectMR}
  *

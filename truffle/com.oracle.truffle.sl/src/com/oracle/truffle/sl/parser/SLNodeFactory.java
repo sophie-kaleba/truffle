@@ -48,7 +48,6 @@ import java.util.Map;
 
 import com.oracle.truffle.api.frame.FrameDescriptor;
 import com.oracle.truffle.api.frame.FrameSlot;
-import com.oracle.truffle.api.nodes.Node;
 import com.oracle.truffle.api.source.Source;
 import com.oracle.truffle.api.source.SourceSection;
 import com.oracle.truffle.sl.nodes.SLExpressionNode;
@@ -63,6 +62,7 @@ import com.oracle.truffle.sl.nodes.call.SLInvokeNodeGen;
 import com.oracle.truffle.sl.nodes.controlflow.SLBlockNode;
 import com.oracle.truffle.sl.nodes.controlflow.SLBreakNode;
 import com.oracle.truffle.sl.nodes.controlflow.SLContinueNode;
+import com.oracle.truffle.sl.nodes.controlflow.SLDebuggerNode;
 import com.oracle.truffle.sl.nodes.controlflow.SLFunctionBodyNode;
 import com.oracle.truffle.sl.nodes.controlflow.SLIfNode;
 import com.oracle.truffle.sl.nodes.controlflow.SLReturnNode;
@@ -204,14 +204,25 @@ public class SLNodeFactory {
         return (statement instanceof SLIfNode) || (statement instanceof SLWhileNode);
     }
 
-    private void flattenBlocks(Iterable<? extends Node> bodyNodes, List<SLStatementNode> flattenedNodes) {
-        for (Node n : bodyNodes) {
+    private void flattenBlocks(Iterable<? extends SLStatementNode> bodyNodes, List<SLStatementNode> flattenedNodes) {
+        for (SLStatementNode n : bodyNodes) {
             if (n instanceof SLBlockNode) {
-                flattenBlocks(n.getChildren(), flattenedNodes);
+                flattenBlocks(((SLBlockNode) n).getStatements(), flattenedNodes);
             } else {
-                flattenedNodes.add((SLStatementNode) n);
+                flattenedNodes.add(n);
             }
         }
+    }
+
+    /**
+     * Returns an {@link SLDebuggerNode} for the given token.
+     *
+     * @param debuggerToken The token containing the debugger node's info.
+     * @return A SLDebuggerNode for the given token.
+     */
+    SLStatementNode createDebugger(Token debuggerToken) {
+        final SLDebuggerNode debuggerNode = new SLDebuggerNode(srcFromToken(debuggerToken));
+        return debuggerNode;
     }
 
     /**

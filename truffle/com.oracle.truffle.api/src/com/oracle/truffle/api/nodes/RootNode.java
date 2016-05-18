@@ -48,8 +48,7 @@ public abstract class RootNode extends Node {
     final Class<? extends TruffleLanguage> language;
     private RootCallTarget callTarget;
     @CompilationFinal private FrameDescriptor frameDescriptor;
-
-    @CompilationFinal private SourceSection sourceSection;
+    private final SourceSection sourceSection;
 
     /**
      * Creates new root node. Each {@link RootNode} is associated with a particular language - if
@@ -69,17 +68,14 @@ public abstract class RootNode extends Node {
         this(language, sourceSection, frameDescriptor, true);
     }
 
-    protected RootNode(Class<? extends TruffleLanguage> language, FrameDescriptor frameDescriptor) {
-        this(language, null, frameDescriptor, true);
-    }
-
     private RootNode(Class<? extends TruffleLanguage> language, SourceSection sourceSection, FrameDescriptor frameDescriptor, boolean checkLanguage) {
-        this.sourceSection = sourceSection;
+        super();
         if (checkLanguage) {
             if (!TruffleLanguage.class.isAssignableFrom(language)) {
                 throw new IllegalStateException();
             }
         }
+        this.sourceSection = sourceSection;
         this.language = language;
         if (frameDescriptor == null) {
             this.frameDescriptor = new FrameDescriptor();
@@ -96,6 +92,14 @@ public abstract class RootNode extends Node {
         return root;
     }
 
+    /**
+     * Returns source section specified when
+     * {@link #RootNode(java.lang.Class, com.oracle.truffle.api.source.SourceSection, com.oracle.truffle.api.frame.FrameDescriptor)
+     * constructing the node}.
+     *
+     * @return source section passed into the constructor
+     * @since 0.13
+     */
     @Override
     public SourceSection getSourceSection() {
         return sourceSection;

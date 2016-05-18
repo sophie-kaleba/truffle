@@ -35,6 +35,7 @@ import com.oracle.truffle.api.interop.Message;
 import com.oracle.truffle.api.interop.TruffleObject;
 import com.oracle.truffle.api.interop.UnsupportedMessageException;
 import com.oracle.truffle.api.nodes.RootNode;
+import java.lang.reflect.Modifier;
 
 /**
  * Helper methods to simplify access to objects of {@link TruffleLanguage Truffle languages} from
@@ -68,7 +69,8 @@ import com.oracle.truffle.api.nodes.RootNode;
  * <li>If the {@link Message#createInvoke(int) previous message} isn't handled, a
  * {@link Message#READ} is sent to your {@link TruffleObject object} (e.g.
  * {@link ForeignAccess#getReceiver(com.oracle.truffle.api.frame.Frame) receiver}) with a field name
- * equal to the name of the interface method. If the read returns a primitive type, it is returned.</li>
+ * equal to the name of the interface method. If the read returns a primitive type, it is returned.
+ * </li>
  * <li>If the read value is another {@link TruffleObject}, it is inspected whether it handles
  * {@link Message#IS_EXECUTABLE}. If it does, a message {@link Message#createExecute(int)} with name
  * of the interface method and its parameters is sent to the object. The result is returned to the
@@ -224,11 +226,38 @@ public final class JavaInterop {
      * @since 0.9
      */
     public static <T> TruffleObject asTruffleFunction(Class<T> functionalType, T implementation) {
-        final Method[] arr = functionalType.getDeclaredMethods();
-        if (!functionalType.isInterface() || arr.length != 1) {
+        final Method method = functionalInterfaceMethod(functionalType);
+        if (method == null) {
             throw new IllegalArgumentException();
         }
-        return new JavaFunctionObject(arr[0], implementation);
+        return new JavaFunctionObject(method, implementation);
+    }
+
+    private static <T> Method functionalInterfaceMethod(Class<T> functionalType) {
+        if (!functionalType.isInterface()) {
+            return null;
+        }
+        final Method[] arr = functionalType.getMethods();
+        if (arr.length == 1) {
+            return arr[0];
+        }
+        Method found = null;
+        for (Method m : arr) {
+            if ((m.getModifiers() & Modifier.ABSTRACT) == 0) {
+                continue;
+            }
+            try {
+                Object.class.getMethod(m.getName(), m.getParameterTypes());
+                continue;
+            } catch (NoSuchMethodException ex) {
+                // OK, not an object method
+            }
+            if (found != null) {
+                return null;
+            }
+            found = m;
+        }
+        return found;
     }
 
     private static class TemporaryConvertRoot extends RootNode {

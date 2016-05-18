@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * The Universal Permissive License (UPL), Version 1.0
@@ -40,6 +40,8 @@
  */
 package com.oracle.truffle.sl.test;
 
+import com.oracle.truffle.api.CallTarget;
+import com.oracle.truffle.api.Truffle;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -49,6 +51,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.LinkedList;
 
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -58,12 +61,19 @@ import com.oracle.truffle.api.debug.ExecutionEvent;
 import com.oracle.truffle.api.debug.SuspendedEvent;
 import com.oracle.truffle.api.frame.FrameSlot;
 import com.oracle.truffle.api.frame.MaterializedFrame;
+import com.oracle.truffle.api.frame.VirtualFrame;
+import com.oracle.truffle.api.interop.ForeignAccess;
+import com.oracle.truffle.api.interop.ForeignAccess.Factory;
+import com.oracle.truffle.api.interop.ForeignAccess.Factory10;
+import com.oracle.truffle.api.interop.Message;
+import com.oracle.truffle.api.interop.TruffleObject;
+import com.oracle.truffle.api.nodes.RootNode;
 import com.oracle.truffle.api.source.LineLocation;
 import com.oracle.truffle.api.source.Source;
 import com.oracle.truffle.api.vm.EventConsumer;
 import com.oracle.truffle.api.vm.PolyglotEngine;
 import com.oracle.truffle.api.vm.PolyglotEngine.Value;
-import org.junit.After;
+import com.oracle.truffle.sl.SLLanguage;
 
 public class SLDebugTest {
     private Debugger debugger;
@@ -118,7 +128,38 @@ public class SLDebugTest {
                         "  res = n * nMOFact;\n" +
                         "  return res;\n" + "}\n",
                         "factorial.sl").withMimeType(
-                        "application/x-sl");
+                                        "application/x-sl");
+    }
+
+    private static Source createFactorialWithDebugger() {
+        return Source.fromText("function main() {\n" +
+                        "  res = fac(2);\n" + "  println(res);\n" +
+                        "  return res;\n" +
+                        "}\n" +
+                        "function fac(n) {\n" +
+                        "  if (n <= 1) {\n" +
+                        "    return 1;\n" + "  }\n" +
+                        "  nMinusOne = n - 1;\n" +
+                        "  nMOFact = fac(nMinusOne);\n" +
+                        "  debugger;\n" +
+                        "  res = n * nMOFact;\n" +
+                        "  return res;\n" + "}\n",
+                        "factorial.sl").withMimeType(
+                                        "application/x-sl");
+    }
+
+    private static Source createInteropComputation() {
+        return Source.fromText("function main() {\n" +
+                        "}\n" +
+                        "function interopFunction(notifyHandler) {\n" +
+                        "  executing = true;\n" +
+                        "  while (executing == true || executing) {\n" +
+                        "    executing = notifyHandler.isExecuting;\n" +
+                        "  }\n" +
+                        "  return executing;\n" +
+                        "}\n",
+                        "interopComputation.sl").withMimeType(
+                                        "application/x-sl");
     }
 
     protected final String getOut() {
@@ -160,11 +201,46 @@ public class SLDebugTest {
                 // the breakpoint should hit instead
             }
         });
-        assertLocation(8, "return 1",
-                        "n", 1L,
-                        "nMinusOne", null,
-                        "nMOFact", null,
-                        "res", null);
+        assertLocation(8, true,
+                        "return 1", "n",
+                        1L, "nMinusOne",
+                        null, "nMOFact",
+                        null, "res", null);
+        continueExecution();
+
+        Value value = engine.findGlobalSymbol("main").execute();
+        assertExecutedOK();
+        Assert.assertEquals("2\n", getOut());
+        Number n = value.as(Number.class);
+        assertNotNull(n);
+        assertEquals("Factorial computed OK", 2, n.intValue());
+    }
+
+    @Test
+    public void testDebuggerBreakpoint() throws Throwable {
+        final Source factorial = createFactorialWithDebugger();
+
+        run.addLast(new Runnable() {
+            @Override
+            public void run() {
+                assertNull(suspendedEvent);
+                assertNotNull(executionEvent);
+            }
+        });
+        engine.eval(factorial);
+        assertExecutedOK();
+
+        run.addLast(new Runnable() {
+            @Override
+            public void run() {
+                // the breakpoint should hit instead
+            }
+        });
+        assertLocation(12, true,
+                        "debugger", "n",
+                        2L, "nMinusOne",
+                        1L, "nMOFact",
+                        1L, "res", null);
         continueExecution();
 
         Value value = engine.findGlobalSymbol("main").execute();
@@ -190,40 +266,40 @@ public class SLDebugTest {
             }
         });
 
-        assertLocation(2, "res = fac(2)", "res", null);
+        assertLocation(2, true, "res = fac(2)", "res", null);
         stepInto(1);
-        assertLocation(7, "n <= 1",
-                        "n", 2L,
-                        "nMinusOne", null,
-                        "nMOFact", null,
-                        "res", null);
+        assertLocation(7, true,
+                        "n <= 1", "n",
+                        2L, "nMinusOne",
+                        null, "nMOFact",
+                        null, "res", null);
         stepOver(1);
-        assertLocation(10, "nMinusOne = n - 1",
-                        "n", 2L,
-                        "nMinusOne", null,
-                        "nMOFact", null,
-                        "res", null);
+        assertLocation(10, true,
+                        "nMinusOne = n - 1", "n",
+                        2L, "nMinusOne",
+                        null, "nMOFact",
+                        null, "res", null);
         stepOver(1);
-        assertLocation(11, "nMOFact = fac(nMinusOne)",
-                        "n", 2L,
-                        "nMinusOne", 1L,
-                        "nMOFact", null,
-                        "res", null);
+        assertLocation(11, true,
+                        "nMOFact = fac(nMinusOne)", "n",
+                        2L, "nMinusOne",
+                        1L, "nMOFact",
+                        null, "res", null);
         stepOver(1);
-        assertLocation(12, "res = n * nMOFact",
-                        "n", 2L, "nMinusOne", 1L,
-                        "nMOFact", 1L,
-                        "res", null);
+        assertLocation(12, true,
+                        "res = n * nMOFact", "n", 2L, "nMinusOne",
+                        1L, "nMOFact",
+                        1L, "res", null);
         stepOver(1);
-        assertLocation(13, "return res",
-                        "n", 2L,
-                        "nMinusOne", 1L,
-                        "nMOFact", 1L,
-                        "res", 2L);
+        assertLocation(13, true,
+                        "return res", "n",
+                        2L, "nMinusOne",
+                        1L, "nMOFact",
+                        1L, "res", 2L);
         stepOver(1);
-        assertLocation(2, "fac(2)", "res", null);
+        assertLocation(2, false, "fac(2)", "res", null);
         stepOver(1);
-        assertLocation(3, "println(res)", "res", 2L);
+        assertLocation(3, true, "println(res)", "res", 2L);
         stepOut();
 
         Value value = engine.findGlobalSymbol("main").execute();
@@ -232,6 +308,67 @@ public class SLDebugTest {
         Number n = value.as(Number.class);
         assertNotNull(n);
         assertEquals("Factorial computed OK", 2, n.intValue());
+    }
+
+    @Test
+    public void testPause() throws Throwable {
+        final Source interopComp = createInteropComputation();
+
+        run.addLast(new Runnable() {
+            @Override
+            public void run() {
+                assertNull(suspendedEvent);
+                assertNotNull(executionEvent);
+            }
+        });
+        engine.eval(interopComp);
+        assertExecutedOK();
+
+        final ExecNotifyHandler nh = new ExecNotifyHandler();
+
+        run.addLast(new Runnable() {
+            @Override
+            public void run() {
+                assertNull(suspendedEvent);
+                assertNotNull(executionEvent);
+                // Do pause after execution has really started
+                new Thread() {
+                    @Override
+                    public void run() {
+                        nh.waitTillCanPause();
+                        boolean paused = debugger.pause();
+                        Assert.assertTrue(paused);
+                    }
+                }.start();
+            }
+        });
+
+        run.addLast(new Runnable() {
+            @Override
+            public void run() {
+                // paused
+                assertNotNull(suspendedEvent);
+                int line = suspendedEvent.getNode().getSourceSection().getLineLocation().getLineNumber();
+                Assert.assertTrue("Unexpected line: " + line, 5 <= line && line <= 6);
+                final MaterializedFrame frame = suspendedEvent.getFrame();
+                String[] expectedIdentifiers = new String[]{"executing"};
+                for (String expectedIdentifier : expectedIdentifiers) {
+                    FrameSlot slot = frame.getFrameDescriptor().findFrameSlot(expectedIdentifier);
+                    Assert.assertNotNull(expectedIdentifier, slot);
+                }
+                // Assert.assertTrue(debugger.isExecuting());
+                suspendedEvent.prepareContinue();
+                nh.pauseDone();
+            }
+        });
+
+        Value value = engine.findGlobalSymbol("interopFunction").execute(nh);
+
+        assertExecutedOK();
+        // Assert.assertFalse(debugger.isExecuting());
+        Boolean n = value.as(Boolean.class);
+        assertNotNull(n);
+        assertTrue("Interop computation OK", !n.booleanValue());
     }
 
     private void performWork() {
@@ -277,12 +414,13 @@ public class SLDebugTest {
         });
     }
 
-    private void assertLocation(final int line, final String code, final Object... expectedFrame) {
+    private void assertLocation(final int line, final boolean isBefore, final String code, final Object... expectedFrame) {
         run.addLast(new Runnable() {
             public void run() {
                 assertNotNull(suspendedEvent);
                 Assert.assertEquals(line, suspendedEvent.getNode().getSourceSection().getLineLocation().getLineNumber());
                 Assert.assertEquals(code, suspendedEvent.getNode().getSourceSection().getCode());
+                Assert.assertEquals(isBefore, suspendedEvent.isHaltedBefore());
                 final MaterializedFrame frame = suspendedEvent.getFrame();
 
                 Assert.assertEquals(expectedFrame.length / 2, frame.getFrameDescriptor().getSize());
@@ -309,5 +447,138 @@ public class SLDebugTest {
             }
         }
         assertTrue("Assuming all requests processed: " + run, run.isEmpty());
+    }
+
+    private static class ExecNotifyHandler implements TruffleObject {
+
+        private final ExecNotifyHandlerForeign nhf = new ExecNotifyHandlerForeign(this);
+        private final ForeignAccess access = ForeignAccess.create(null, nhf);
+        private final Object pauseLock = new Object();
+        private boolean canPause;
+        private volatile boolean pauseDone;
+
+        @Override
+        public ForeignAccess getForeignAccess() {
+            return access;
+        }
+
+        private void waitTillCanPause() {
+            synchronized (pauseLock) {
+                while (!canPause) {
+                    try {
+                        pauseLock.wait();
+                    } catch (InterruptedException iex) {
+                    }
+                }
+            }
+        }
+
+        void setCanPause() {
+            synchronized (pauseLock) {
+                canPause = true;
+                pauseLock.notifyAll();
+            }
+        }
+
+        private void pauseDone() {
+            pauseDone = true;
+        }
+
+        boolean isPauseDone() {
+            return pauseDone;
+        }
+
+    }
+
+    private static class ExecNotifyHandlerForeign implements Factory10, Factory {
+
+        private final ExecNotifyHandler nh;
+
+        ExecNotifyHandlerForeign(ExecNotifyHandler nh) {
+            this.nh = nh;
+        }
+
+        @Override
+        public CallTarget accessIsNull() {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public CallTarget accessIsExecutable() {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public CallTarget accessIsBoxed() {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public CallTarget accessHasSize() {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public CallTarget accessGetSize() {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public CallTarget accessUnbox() {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public CallTarget accessRead() {
+            return Truffle.getRuntime().createCallTarget(new ExecNotifyReadNode(nh));
+        }
+
+        @Override
+        public CallTarget accessWrite() {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public CallTarget accessExecute(int i) {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public CallTarget accessInvoke(int i) {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public CallTarget accessNew(int i) {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public CallTarget accessMessage(Message msg) {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public boolean canHandle(TruffleObject to) {
+            return (to instanceof ExecNotifyHandler);
+        }
+
+    }
+
+    private static class ExecNotifyReadNode extends RootNode {
+
+        private final ExecNotifyHandler nh;
+
+        ExecNotifyReadNode(ExecNotifyHandler nh) {
+            super(SLLanguage.class, null, null);
+            this.nh = nh;
+        }
+
+        @Override
+        public Object execute(VirtualFrame vf) {
+            nh.setCanPause();
+            return !nh.isPauseDone();
+        }
+
     }
 }

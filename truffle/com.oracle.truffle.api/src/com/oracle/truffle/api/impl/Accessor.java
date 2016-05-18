@@ -24,22 +24,16 @@
  */
 package com.oracle.truffle.api.impl;
 
-import java.io.Closeable;
+import com.oracle.truffle.api.Assumption;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.ref.Reference;
-import java.lang.ref.WeakReference;
-import java.util.Objects;
-
-import com.oracle.truffle.api.Assumption;
 import com.oracle.truffle.api.CallTarget;
-import com.oracle.truffle.api.CompilerAsserts;
-import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.RootCallTarget;
 import com.oracle.truffle.api.Truffle;
 import com.oracle.truffle.api.TruffleLanguage;
 import com.oracle.truffle.api.TruffleLanguage.Env;
+import com.oracle.truffle.api.frame.FrameDescriptor;
 import com.oracle.truffle.api.frame.MaterializedFrame;
 import com.oracle.truffle.api.nodes.Node;
 import com.oracle.truffle.api.nodes.RootNode;
@@ -51,6 +45,7 @@ import java.util.Set;
  * Communication between PolyglotEngine, TruffleLanguage API/SPI, and other services.
  */
 public abstract class Accessor {
+
     public abstract static class Nodes {
         @SuppressWarnings("rawtypes")
         public abstract Class<? extends TruffleLanguage> findLanguage(RootNode n);
@@ -60,17 +55,25 @@ public abstract class Accessor {
         public abstract boolean isTaggedWith(Node node, Class<?> tag);
     }
 
+    public abstract static class DebugSupport {
+        public abstract Assumption assumeNoDebugger();
+
+        public abstract void executionStarted(Object vm, int currentDepth, Object[] debuggerHolder, Source s);
+
+        public abstract void executionEnded(Object vm, Object[] debuggerHolder);
+    }
+
     public abstract static class EngineSupport {
+        public static final int EXECUTION_EVENT = 1;
+        public static final int SUSPENDED_EVENT = 2;
+
+        public abstract <C> FindContextNode<C> createFindContextNode(TruffleLanguage<C> lang);
+
         @SuppressWarnings("rawtypes")
         public abstract Env findEnv(Object vm, Class<? extends TruffleLanguage> languageClass);
 
         @SuppressWarnings("rawtypes")
         public abstract TruffleLanguage<?> findLanguageImpl(Object known, Class<? extends TruffleLanguage> languageClass, String mimeType);
-
-        @SuppressWarnings("static-method")
-        protected final Object findVM() {
-            return CURRENT_VM.get();
-        }
 
         public abstract Object getInstrumentationHandler(Object vm);
 
@@ -78,7 +81,7 @@ public abstract class Accessor {
 
         public abstract Object importSymbol(Object vm, TruffleLanguage<?> queryingLang, String globalName);
 
-        public abstract void dispatchEvent(Object vm, Object event);
+        public abstract void dispatchEvent(Object vm, Object event, int type);
 
         public abstract boolean isMimeTypeSupported(Object vm, String mimeType);
     }
@@ -129,12 +132,19 @@ public abstract class Accessor {
         public abstract void probeAST(RootNode rootNode);
     }
 
+    protected abstract static class Frames {
+        protected abstract void markMaterializeCalled(FrameDescriptor descriptor);
+
+        protected abstract boolean getMaterializeCalled(FrameDescriptor descriptor);
+    }
+
     private static Accessor.LanguageSupport API;
     private static Accessor.EngineSupport SPI;
     private static Accessor.Nodes NODES;
     private static Accessor.OldInstrumentSupport INSTRUMENT;
     private static Accessor.InstrumentSupport INSTRUMENTHANDLER;
-    private static Accessor DEBUG;
+    private static Accessor.DebugSupport DEBUG;
+    private static Accessor.Frames FRAMES;
 
     static {
         TruffleLanguage<?> lng = new TruffleLanguage<Object>() {
@@ -224,7 +234,12 @@ public abstract class Accessor {
             if (DEBUG != null) {
                 throw new IllegalStateException();
             }
-            DEBUG = this;
+            DEBUG = this.debugSupport();
+        } else if (this.getClass().getSimpleName().endsWith("Frames")) {
+            if (FRAMES != null) {
+                throw new IllegalStateException();
+            }
+            FRAMES = this.framesSupport();
         } else {
             if (SPI != null) {
                 throw new IllegalStateException();
@@ -245,6 +260,10 @@ public abstract class Accessor {
         return API;
     }
 
+    protected DebugSupport debugSupport() {
+        return DEBUG;
+    }
+
     protected EngineSupport engineSupport() {
         return SPI;
     }
@@ -257,58 +276,28 @@ public abstract class Accessor {
         return INSTRUMENTHANDLER;
     }
 
+    static LanguageSupport languageAccess() {
+        return API;
+    }
+
+    static EngineSupport engineAccess() {
+        return SPI;
+    }
+
+    static DebugSupport debugAccess() {
+        return DEBUG;
+    }
+
     static Accessor.Nodes nodesAccess() {
         return NODES;
     }
 
-    //
-    // execution
-    //
-
-    private static final ThreadLocal<Object> CURRENT_VM = new ThreadLocal<>();
-    private static Reference<Object> previousVM = new WeakReference<>(null);
-    private static Assumption oneVM = Truffle.getRuntime().createAssumption();
-
-    public static void initializeThreadForUseWithPolglotEngine(Object /* because types are evil */ polyglotEngine) {
-        assert polyglotEngine != null;
-        assert CURRENT_VM.get() == null;
-        CURRENT_VM.set(polyglotEngine);
+    protected Accessor.Frames framesSupport() {
+        return FRAMES;
     }
 
-    @TruffleBoundary
-    protected Closeable executionStart(Object vm, @SuppressWarnings("unused") int currentDepth, boolean debugger, Source s) {
-        CompilerAsserts.neverPartOfCompilation("do not call Accessor.executionStart from compiled code");
-        Objects.requireNonNull(vm);
-        final Object prev = CURRENT_VM.get();
-        final Closeable debugClose = DEBUG == null ? null : DEBUG.executionStart(vm, prev == null ? 0 : -1, debugger, s);
-        if (!(vm == previousVM.get())) {
-            previousVM = new WeakReference<>(vm);
-            oneVM.invalidate();
-            oneVM = Truffle.getRuntime().createAssumption();
-
-        }
-        CURRENT_VM.set(vm);
-        class ContextCloseable implements Closeable {
-            @TruffleBoundary
-            @Override
-            public void close() throws IOException {
-                CURRENT_VM.set(prev);
-                if (debugClose != null) {
-                    debugClose.close();
-                }
-            }
-        }
-        return new ContextCloseable();
-    }
-
-    static Assumption oneVMAssumption() {
-        return oneVM;
-    }
-
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    static <C> C findContext(Class<? extends TruffleLanguage> type) {
-        Env env = SPI.findEnv(CURRENT_VM.get(), type);
-        return (C) API.findContext(env);
+    static Accessor.Frames framesAccess() {
+        return FRAMES;
     }
 
     /**
