@@ -111,7 +111,7 @@ public final class REPLServer {
         }
     });
 
-    /** MAP: language name => Language. */
+    /** MAP: language name => Language (case insensitive). */
     private final Map<String, Language> nameToLanguage = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
     // TODO (mlvdv) Language-specific
@@ -132,7 +132,7 @@ public final class REPLServer {
         engineLanguages.addAll(engine.getLanguages().values());
 
         for (Language language : engineLanguages) {
-            nameToLanguage.put(language.getName(), language);
+            nameToLanguage.put(language.getName().toLowerCase(), language);
         }
         astPrinter = new REPLASTPrinter(engine);
         statusPrefix = "";
@@ -469,7 +469,7 @@ public final class REPLServer {
          */
         String setLanguage(String name) throws IOException {
             assert name != null;
-            final Language language = nameToLanguage.get(name);
+            final Language language = nameToLanguage.get(name.toLowerCase());
             if (language == null) {
                 throw new IOException("Language \"" + name + "\" not supported");
             }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * The Universal Permissive License (UPL), Version 1.0
@@ -38,39 +38,58 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.oracle.truffle.sl.builtins;
+package com.oracle.truffle.sl.test;
 
-import com.oracle.truffle.api.CompilerDirectives;
-import com.oracle.truffle.api.dsl.Specialization;
-import com.oracle.truffle.api.nodes.NodeInfo;
-import com.oracle.truffle.api.source.SourceSection;
-import com.oracle.truffle.sl.SLAssertionError;
-import com.oracle.truffle.sl.SLLanguage;
-import com.oracle.truffle.sl.runtime.SLNull;
+import com.oracle.truffle.api.source.Source;
+import com.oracle.truffle.api.vm.PolyglotEngine;
+import org.junit.After;
+import static org.junit.Assert.assertEquals;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * Asserts a given value to be <code>false</code> and throws an {@link AssertionError} if the value
- * was <code>true</code>.
- */
-@NodeInfo(shortName = "assertFalse")
-public abstract class SLAssertFalseBuiltin extends SLBuiltinNode {
+public class SLFactorialTest {
 
-    public SLAssertFalseBuiltin() {
-        super(SourceSection.createUnavailable(SLLanguage.builtinKind, "assertFalse"));
+    private PolyglotEngine engine;
+    private PolyglotEngine.Value factorial;
+
+    @Before
+    public void initEngine() throws Exception {
+        engine = PolyglotEngine.newBuilder().build();
+        // @formatter:off
+        engine.eval(Source.fromText(
+            "function fac(n) {\n" +
+            "  if (n <= 1) {\n" +
+            "    return 1;\n" +
+            "  }\n" +
+            "  prev = fac(n - 1);\n" +
+            "  return prev * n;\n" +
+            "}\n",
+            "factorial.sl"
+        ).withMimeType("application/x-sl"));
+        // @formatter:on
+        factorial = engine.findGlobalSymbol("fac");
     }
 
-    @Specialization
-    public boolean doAssert(boolean value, String message) {
-        if (value) {
-            CompilerDirectives.transferToInterpreter();
-            throw new SLAssertionError(message == null ? "" : message);
-        }
-        return value;
+    @After
+    public void dispose() {
+        engine.dispose();
     }
 
-    @Specialization
-    public boolean doAssertNull(boolean value, @SuppressWarnings("unused") SLNull message) {
-        return doAssert(value, null);
+    @Test
+    public void factorialOf5() throws Exception {
+        Number ret = factorial.execute(5).as(Number.class);
+        assertEquals(120, ret.intValue());
     }
 
+    @Test
+    public void factorialOf3() throws Exception {
+        Number ret = factorial.execute(3).as(Number.class);
+        assertEquals(6, ret.intValue());
+    }
+
+    @Test
+    public void factorialOf1() throws Exception {
+        Number ret = factorial.execute(1).as(Number.class);
+        assertEquals(1, ret.intValue());
+    }
 }

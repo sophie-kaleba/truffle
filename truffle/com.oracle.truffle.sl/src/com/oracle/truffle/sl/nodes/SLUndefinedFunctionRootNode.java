@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * The Universal Permissive License (UPL), Version 1.0
@@ -38,40 +38,25 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.oracle.truffle.sl.test;
+package com.oracle.truffle.sl.nodes;
 
-import com.oracle.truffle.api.source.Source;
-import com.oracle.truffle.api.vm.PolyglotEngine;
-import com.oracle.truffle.sl.SLLanguage;
-import org.junit.After;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import org.junit.Test;
+import com.oracle.truffle.api.frame.VirtualFrame;
+import com.oracle.truffle.api.nodes.RootNode;
+import com.oracle.truffle.sl.runtime.SLFunction;
+import com.oracle.truffle.sl.runtime.SLUndefinedNameException;
 
-public class ParsingCachedTest {
-
-    private PolyglotEngine engine;
-
-    @After
-    public void dispose() {
-        if (engine != null) {
-            engine.dispose();
-        }
+/**
+ * The initial {@link RootNode} of {@link SLFunction functions} when they are created, i.e., when
+ * they are still undefined. Executing it throws an
+ * {@link SLUndefinedNameException#undefinedFunction exception}.
+ */
+public class SLUndefinedFunctionRootNode extends SLRootNode {
+    public SLUndefinedFunctionRootNode(String name) {
+        super(null, null, null, name);
     }
 
-    @Test
-    public void stepInStepOver() throws Throwable {
-        Source nullSrc = Source.fromText("function main() {}", "yields null").withMimeType("application/x-sl");
-
-        engine = PolyglotEngine.newBuilder().build();
-        int cnt = SLLanguage.parsingCount();
-        Object res = engine.eval(nullSrc).get();
-        assertNull("Is null", res);
-        assertEquals("One parsing happened", cnt + 1, SLLanguage.parsingCount());
-
-        Object res2 = engine.eval(nullSrc).get();
-        assertNull("Still null", res2);
-        assertEquals("No more parsing happened", cnt + 1, SLLanguage.parsingCount());
+    @Override
+    public Object execute(VirtualFrame frame) {
+        throw SLUndefinedNameException.undefinedFunction(getName());
     }
-
 }
