@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.List;
 
 import com.oracle.truffle.api.CompilerDirectives;
+import com.oracle.truffle.api.RootCallTarget;
 import com.oracle.truffle.api.debug.Debugger.DebugExecutionContext;
 import com.oracle.truffle.api.debug.Debugger.HaltPosition;
 import com.oracle.truffle.api.frame.FrameInstance;
@@ -37,6 +38,7 @@ import com.oracle.truffle.api.frame.MaterializedFrame;
 import com.oracle.truffle.api.instrumentation.ExecutionEventListener;
 import com.oracle.truffle.api.instrumentation.StandardTags.StatementTag;
 import com.oracle.truffle.api.nodes.Node;
+import com.oracle.truffle.api.nodes.RootNode;
 
 /**
  * This event is delivered to all
@@ -275,19 +277,56 @@ public final class SuspendedEvent {
      * Evaluates given code snippet in the context of currently suspended execution.
      *
      * @param code the snippet to evaluate
-     * @param frame the frame in which to evaluate the code; { means the current frame at the halted
-     *            location.
+     * @param frameInstance the frame in which to evaluate the code; {@code null} means the current
+     *            frame at the halted location.
      * @return the computed value
+     * @throws IllegalArgumentException if the frame is not part of current execution stack
      * @throws IOException in case an evaluation goes wrong
      * @throws KillException if the evaluation is killed by the debugger
      * @since 0.9
      */
-    public Object eval(String code, FrameInstance frame) throws IOException {
-        return context.getDebugger().evalInContext(context, this, code, frame);
+    public Object eval(String code, FrameInstance frameInstance) throws IOException {
+        if (!stack.contains(frameInstance)) {
+            throw new IllegalArgumentException();
+        }
+        return context.getDebugger().evalInContext(context, this, code, frameInstance);
     }
 
     /**
-     * Prepare to terminate the suspended execution represented by this event.
+     * Generates a (potentially language-specific) description of an execution value in a part of
+     * the current execution context, for example the value stored in a frame slot. The description
+     * is intended to be useful to a guest language programmer.
+     *
+     * @param value an object presumed to represent a <em>value</em> managed by the language of the
+     *            AST where execution is halted.
+     * @param frameInstance the frame in which to evaluate the code;
+     *
+     * @return a user-oriented description of a possibly language-specific value
+     * @throws IllegalArgumentException if the frame is not part of current execution stack
+     * @since 0.15
+     */
+    public String toString(Object value, FrameInstance frameInstance) {
+        if (!stack.contains(frameInstance)) {
+            throw new IllegalArgumentException();
+        }
+        RootNode rootNode = null;
+        if (frameInstance == stack.get(0)) {
+            rootNode = haltedNode.getRootNode();
+        } else if (frameInstance.getCallTarget() instanceof RootCallTarget) {
+            rootNode = ((RootCallTarget) frameInstance.getCallTarget()).getRootNode();
+        }
+        if (rootNode == null) {
+            // Unknown language
+            return value.toString();
+        }
+        return Debugger.ACCESSOR.toStringInContext(rootNode, value);
+    }
+
+    /**
+     * Prepare to terminate the suspended execution represented by this event. One use-case for this
+     * method is to shield an execution of an unknown code with a timeout:
+     *
+     * {@link com.oracle.truffle.tck.ExecWithTimeOut#tckSnippets}
      *
      * @since 0.12
      */

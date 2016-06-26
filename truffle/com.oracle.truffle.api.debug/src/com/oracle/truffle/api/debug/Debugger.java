@@ -54,6 +54,7 @@ import com.oracle.truffle.api.instrumentation.SourceSectionFilter;
 import com.oracle.truffle.api.instrumentation.StandardTags.CallTag;
 import com.oracle.truffle.api.instrumentation.StandardTags.StatementTag;
 import com.oracle.truffle.api.nodes.Node;
+import com.oracle.truffle.api.nodes.RootNode;
 import com.oracle.truffle.api.source.LineLocation;
 import com.oracle.truffle.api.source.Source;
 import com.oracle.truffle.api.source.SourceSection;
@@ -131,7 +132,9 @@ public final class Debugger {
     private static final DebuggerInstrument.Factory FACTORY = new DebuggerInstrument.Factory() {
         @Override
         public Debugger create(PolyglotEngine engine, Instrumenter instrumenter) {
-            return new Debugger(engine, instrumenter);
+            Debugger newDebugger = new Debugger(engine, instrumenter);
+            AccessorDebug.engineAccess().registerDebugger(engine, newDebugger);
+            return newDebugger;
         }
     };
 
@@ -1125,7 +1128,7 @@ public final class Debugger {
                 if (haltedEventContext != null && haltedEventContext.getInstrumentedNode().getSourceSection() != null) {
                     location = haltedEventContext.getInstrumentedNode().getSourceSection().getShortDescription();
                 } else if (source != null) {
-                    location = source.getShortName();
+                    location = source.getName();
                 } else {
                     location = "no source";
                 }
@@ -1177,7 +1180,8 @@ public final class Debugger {
     }
 
     /**
-     * Evaluates a snippet of code in a halted execution context.
+     * Evaluates a snippet of code in a halted execution context. Assumes frame is part of the
+     * current execution stack, behavior is undefined if not.
      *
      * @param ev event notification where execution is halted
      * @param code text of the code to be executed
@@ -1254,6 +1258,14 @@ public final class Debugger {
         protected CallTarget parse(Class<? extends TruffleLanguage> languageClass, Source code, Node context, String... argumentNames) throws IOException {
             final TruffleLanguage<?> truffleLanguage = engineSupport().findLanguageImpl(null, languageClass, code.getMimeType());
             return languageSupport().parse(truffleLanguage, code, context, argumentNames);
+        }
+
+        @SuppressWarnings({"rawtypes", "static-method"})
+        String toStringInContext(RootNode rootNode, Object value) {
+            final Class<? extends TruffleLanguage> languageClass = nodesAccess().findLanguage(rootNode);
+            final TruffleLanguage.Env env = engineAccess().findEnv(languageClass);
+            final TruffleLanguage<?> language = langs().findLanguage(env);
+            return AccessorDebug.langs().toString(language, env, value);
         }
     }
 
