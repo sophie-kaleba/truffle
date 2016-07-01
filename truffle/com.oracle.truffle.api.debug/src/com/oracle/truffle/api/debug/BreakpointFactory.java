@@ -59,12 +59,14 @@ import com.oracle.truffle.api.instrumentation.ExecutionEventNodeFactory;
 import com.oracle.truffle.api.instrumentation.Instrumenter;
 import com.oracle.truffle.api.instrumentation.SourceSectionFilter;
 import com.oracle.truffle.api.instrumentation.StandardTags;
+import com.oracle.truffle.api.instrumentation.SourceSectionFilter.Builder;
 import com.oracle.truffle.api.instrumentation.SourceSectionFilter.IndexRange;
 import com.oracle.truffle.api.nodes.DirectCallNode;
 import com.oracle.truffle.api.nodes.InvalidAssumptionException;
 import com.oracle.truffle.api.nodes.Node;
 import com.oracle.truffle.api.source.LineLocation;
 import com.oracle.truffle.api.source.Source;
+import com.oracle.truffle.api.source.SourceSection;
 import com.oracle.truffle.api.utilities.CyclicAssumption;
 import java.lang.ref.Reference;
 import java.lang.ref.WeakReference;
@@ -90,8 +92,9 @@ final class BreakpointFactory {
     }
 
     /**
-     * Map: Location key ==> attached breakpoints, where key is either a {@link LineLocation} or
-     * {@linkplain String tag}; there may be no more than one breakpoint per key.
+     * Map: Location key ==> attached breakpoints, where key is either a {@link LineLocation}, a
+     * {@link SourceSection} or {@linkplain String tag}; there may be no more than one breakpoint
+     * per key.
      */
     private final Map<Object, BreakpointImpl> breakpoints = new HashMap<>();
     /**
@@ -100,6 +103,7 @@ final class BreakpointFactory {
      */
     private final Map<Object, BreakpointImpl> breakpointsInternal = new HashMap<>();
     private final Map<URI, Set<URILocation>> uriLocations = new HashMap<>();
+    private final Map<URI, Set<URISectionLocation>> uriSectionLocations = new HashMap<>();
     private final Map<URI, Reference<Source>> sources = new HashMap<>();
 
     private static final Comparator<Entry<Object, BreakpointImpl>> BREAKPOINT_COMPARATOR = new Comparator<Entry<Object, BreakpointImpl>>() {
@@ -158,6 +162,41 @@ final class BreakpointFactory {
             breakpointsActiveUnchanged.invalidate();
             this.breakpointsActive = breakpointsActive;
         }
+    }
+
+    /**
+     * Creates a new source section breakpoint if one doesn't already exist. If one does exist, then
+     * resets the <em>ignore count</em>.
+     * <p>
+     * If a breakpoint <em>condition</em> is applied to the breakpoint, then the condition will be
+     * assumed to be in the same language as the code location where attached.
+     *
+     * @param sourceSection where to set the breakpoint
+     * @param ignoreCount number of initial hits before the breakpoint starts causing breaks.
+     * @param oneShot whether the breakpoint should dispose itself after one hit
+     * @return a possibly new breakpoint
+     * @throws IOException if a breakpoint already exists at the location and the ignore count is
+     *             the same
+     */
+    Breakpoint create(int ignoreCount, SourceSection sourceSection, boolean oneShot) throws IOException {
+        BreakpointImpl breakpoint = breakpoints.get(sourceSection);
+        if (breakpoint == null) {
+            final SourceSectionFilter query = SourceSectionFilter.newBuilder().sourceIs(sourceSection.getSource()).sourceSectionEquals(sourceSection).tagIs(StandardTags.StatementTag.class).build();
+            breakpoint = createBreakpoint(sourceSection, query, ignoreCount, oneShot);
+            if (TRACE) {
+                trace("NEW " + breakpoint.getShortDescription());
+            }
+            breakpoints.put(sourceSection, breakpoint);
+        } else {
+            if (ignoreCount == breakpoint.getIgnoreCount()) {
+                throw new IOException("Breakpoint already set at source section: " + sourceSection);
+            }
+            breakpoint.setIgnoreCount(ignoreCount);
+            if (TRACE) {
+                trace("CHANGED ignoreCount %s", breakpoint.getShortDescription());
+            }
+        }
+        return breakpoint;
     }
 
     /**
@@ -224,6 +263,41 @@ final class BreakpointFactory {
         } else {
             if (ignoreCount == breakpoint.getIgnoreCount()) {
                 throw new IOException("Breakpoint already set at location " + uriLocation);
+            }
+            breakpoint.setIgnoreCount(ignoreCount);
+            if (TRACE) {
+                trace("CHANGED ignoreCount %s", breakpoint.getShortDescription());
+            }
+        }
+        return breakpoint;
+    }
+
+    Breakpoint create(int ignoreCount, URI sourceUri, int startLine, int startColumn, int charLength, boolean oneShort) throws IOException {
+        URISectionLocation uriLoc = new URISectionLocation(sourceUri, startLine, startColumn, charLength);
+        BreakpointImpl breakpoint = breakpoints.get(uriLoc);
+        if (breakpoint == null) {
+            Set<URISectionLocation> locations = uriSectionLocations.get(sourceUri);
+            if (locations == null) {
+                locations = new HashSet<>();
+                uriSectionLocations.put(sourceUri, locations);
+            }
+            locations.add(uriLoc);
+            breakpoint = createBreakpoint(uriLoc, null, ignoreCount, oneShort);
+
+            // duplicated code
+            Reference<Source> sourceRef = sources.get(sourceUri);
+            if (sourceRef != null) {
+                Source source = sourceRef.get();
+                if (source != null) {
+                    breakpoint.resolve(source);
+                } else {
+                    sources.remove(sourceUri);
+                }
+            }
+            breakpoints.put(uriLoc, breakpoint);
+        } else {
+            if (ignoreCount == breakpoint.getIgnoreCount()) {
+                throw new IOException("Breakpoint already set at location " + uriSectionLocations);
             }
             breakpoint.setIgnoreCount(ignoreCount);
             if (TRACE) {
@@ -320,6 +394,15 @@ final class BreakpointFactory {
                 uriLocations.remove(ul.uri);
             }
         }
+
+        if (key instanceof URISectionLocation) {
+            URISectionLocation ul = (URISectionLocation) key;
+            Set<URISectionLocation> locations = uriSectionLocations.get(ul.uri);
+            locations.remove(ul);
+            if (locations.isEmpty()) {
+                uriSectionLocations.remove(ul.uri);
+            }
+        }
     }
 
     BreakpointImpl createBreakpoint(Object key, SourceSectionFilter query, int ignoreCount, boolean isOneShot) {
@@ -348,6 +431,12 @@ final class BreakpointFactory {
         Set<URILocation> locations = uriLocations.get(uri);
         if (locations != null) {
             for (URILocation l : locations) {
+                breakpoints.get(l).resolve(source);
+            }
+        }
+        Set<URISectionLocation> sectionLocations = uriSectionLocations.get(uri);
+        if (sectionLocations != null) {
+            for (URISectionLocation l : sectionLocations) {
                 breakpoints.get(l).resolve(source);
             }
         }
@@ -589,10 +678,22 @@ final class BreakpointFactory {
         }
 
         private void resolve(Source source) {
-            int line = ((URILocation) locationKey).line;
-            LineLocation lineLocation = source.createLineLocation(line);
-            final SourceSectionFilter query = SourceSectionFilter.newBuilder().sourceIs(lineLocation.getSource()).lineStartsIn(IndexRange.byLength(lineLocation.getLineNumber(), 1)).tagIs(
-                            StandardTags.StatementTag.class).build();
+            Builder builder = SourceSectionFilter.newBuilder().sourceIs(source);
+            if (locationKey instanceof URILocation) {
+                int line = ((URILocation) locationKey).line;
+                LineLocation lineLocation = source.createLineLocation(line);
+                builder.lineStartsIn(
+                                IndexRange.byLength(lineLocation.getLineNumber(), 1));
+            } else {
+                assert locationKey instanceof URISectionLocation : "Missing support for other type of breakpoint?";
+                URISectionLocation loc = (URISectionLocation) locationKey;
+                SourceSection ss = source.createSection(null, loc.startLine, loc.startColumn, loc.charLength);
+                builder.sourceSectionEquals(ss);
+            }
+
+            builder.tagIs(StandardTags.StatementTag.class);
+
+            final SourceSectionFilter query = builder.build();
             locationQuery = query;
             if (conditionExpr != null) {
                 // @formatter:off
@@ -736,5 +837,57 @@ final class BreakpointFactory {
             return "URILocation{" + "uri=" + uri + ", line=" + line + ", column=" + column + '}';
         }
 
+    }
+
+    private static final class URISectionLocation {
+        private final URI uri;
+        private final int startLine;
+        private final int startColumn;
+        private final int charLength;
+
+        URISectionLocation(URI uri, int startLine, int startColumn, int charLength) {
+            this.uri = uri;
+            this.startLine = startLine;
+            this.startColumn = startColumn;
+            this.charLength = charLength;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(this.uri, this.startLine, this.startColumn, this.charLength);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            final URISectionLocation other = (URISectionLocation) obj;
+            if (this.startLine != other.startLine) {
+                return false;
+            }
+            if (this.startColumn != other.startColumn) {
+                return false;
+            }
+            if (this.charLength != other.charLength) {
+                return false;
+            }
+            if (!Objects.equals(this.uri, other.uri)) {
+                return false;
+            }
+            return true;
+        }
+
+        @Override
+        public String toString() {
+            return "URISectionLocation{" + "uri=" + uri + ", line=" + startLine +
+                            ", column=" + startColumn + " length=" + charLength + '}';
+        }
     }
 }
