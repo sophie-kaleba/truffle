@@ -332,6 +332,10 @@ public final class Debugger {
         return breakpoints.get(line);
     }
 
+    public Breakpoint getBreakpoint(SourceSection section) {
+        return breakpoints.get(section);
+    }
+
     /**
      * Gets all existing breakpoints, whatever their status, in natural sorted order. Modification
      * save.
