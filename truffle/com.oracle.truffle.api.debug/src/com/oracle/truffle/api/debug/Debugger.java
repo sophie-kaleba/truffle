@@ -312,6 +312,14 @@ public final class Debugger {
         throw new UnsupportedOperationException();
     }
 
+    public Breakpoint getBreakpoint(LineLocation line) {
+        return breakpoints.get(line);
+    }
+
+    public Breakpoint getBreakpoint(SourceSection section) {
+        return breakpoints.get(section);
+    }
+
     /**
      * Gets all existing breakpoints, whatever their status, in natural sorted order. Modification
      * save.
