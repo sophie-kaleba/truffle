@@ -45,7 +45,7 @@ def javadoc(args, vm=None):
 
 def build(args, vm=None):
     """build the Java sources"""
-    opts2 = mx.build(['--source', '1.7'] + args)
+    opts2 = mx.build(['--source', '1.8'] + args)
     assert len(opts2.remainder) == 0
 
 def sl(args):
