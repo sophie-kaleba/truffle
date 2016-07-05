@@ -102,6 +102,7 @@ final class BreakpointFactory {
      */
     private final Map<Object, BreakpointImpl> breakpointsInternal = new HashMap<>();
     private final Map<URI, Set<URILocation>> uriLocations = new HashMap<>();
+    private final Map<URI, Set<URISectionLocation>> uriSectionLocations = new HashMap<>();
     private final Map<URI, Reference<Source>> sources = new HashMap<>();
 
     private static final Comparator<Entry<Object, BreakpointImpl>> BREAKPOINT_COMPARATOR = new Comparator<Entry<Object, BreakpointImpl>>() {
@@ -270,6 +271,41 @@ final class BreakpointFactory {
         return breakpoint;
     }
 
+    Breakpoint create(int ignoreCount, URI sourceUri, int startLine, int startColumn, int charLength, boolean oneShort) throws IOException {
+        URISectionLocation uriLoc = new URISectionLocation(sourceUri, startLine, startColumn, charLength);
+        BreakpointImpl breakpoint = breakpoints.get(uriLoc);
+        if (breakpoint == null) {
+            Set<URISectionLocation> locations = uriSectionLocations.get(sourceUri);
+            if (locations == null) {
+                locations = new HashSet<>();
+                uriSectionLocations.put(sourceUri, locations);
+            }
+            locations.add(uriLoc);
+            breakpoint = createBreakpoint(uriLoc, null, ignoreCount, oneShort);
+
+            // duplicated code
+            Reference<Source> sourceRef = sources.get(sourceUri);
+            if (sourceRef != null) {
+                Source source = sourceRef.get();
+                if (source != null) {
+                    breakpoint.resolve(source);
+                } else {
+                    sources.remove(sourceUri);
+                }
+            }
+            breakpoints.put(uriLoc, breakpoint);
+        } else {
+            if (ignoreCount == breakpoint.getIgnoreCount()) {
+                throw new IOException("Breakpoint already set at location " + uriSectionLocations);
+            }
+            breakpoint.setIgnoreCount(ignoreCount);
+            if (TRACE) {
+                trace("CHANGED ignoreCount %s", breakpoint.getShortDescription());
+            }
+        }
+        return breakpoint;
+    }
+
     /**
      * Creates a new line breakpoint if one doesn't already exist. If one does exist, then resets
      * the <em>ignore count</em>.
@@ -357,6 +393,15 @@ final class BreakpointFactory {
                 uriLocations.remove(ul.uri);
             }
         }
+
+        if (key instanceof URISectionLocation) {
+            URISectionLocation ul = (URISectionLocation) key;
+            Set<URISectionLocation> locations = uriSectionLocations.get(ul.uri);
+            locations.remove(ul);
+            if (locations.isEmpty()) {
+                uriSectionLocations.remove(ul.uri);
+            }
+        }
     }
 
     BreakpointImpl createBreakpoint(Object key, SourceSectionFilter query, int ignoreCount, boolean isOneShot) {
@@ -385,6 +430,12 @@ final class BreakpointFactory {
         Set<URILocation> locations = uriLocations.get(uri);
         if (locations != null) {
             for (URILocation l : locations) {
+                breakpoints.get(l).resolve(source);
+            }
+        }
+        Set<URISectionLocation> sectionLocations = uriSectionLocations.get(uri);
+        if (locations != null) {
+            for (URISectionLocation l : sectionLocations) {
                 breakpoints.get(l).resolve(source);
             }
         }
@@ -773,5 +824,57 @@ final class BreakpointFactory {
             return "URILocation{" + "uri=" + uri + ", line=" + line + ", column=" + column + '}';
         }
 
+    }
+
+    private static final class URISectionLocation {
+        private final URI uri;
+        private final int startLine;
+        private final int startColumn;
+        private final int charLength;
+
+        URISectionLocation(URI uri, int startLine, int startColumn, int charLength) {
+            this.uri = uri;
+            this.startLine = startLine;
+            this.startColumn = startColumn;
+            this.charLength = charLength;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(this.uri, this.startLine, this.startColumn, this.charLength);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            final URISectionLocation other = (URISectionLocation) obj;
+            if (this.startLine != other.startLine) {
+                return false;
+            }
+            if (this.startColumn != other.startColumn) {
+                return false;
+            }
+            if (this.charLength != other.charLength) {
+                return false;
+            }
+            if (!Objects.equals(this.uri, other.uri)) {
+                return false;
+            }
+            return true;
+        }
+
+        @Override
+        public String toString() {
+            return "URISectionLocation{" + "uri=" + uri + ", line=" + startLine +
+                            ", column=" + startColumn + " length=" + charLength + '}';
+        }
     }
 }

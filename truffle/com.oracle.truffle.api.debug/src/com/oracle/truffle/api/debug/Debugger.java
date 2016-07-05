@@ -269,6 +269,11 @@ public final class Debugger {
         return breakpoints.create(ignoreCount, sourceSection, oneShot);
     }
 
+    @TruffleBoundary
+    public Breakpoint setSourceSectionBreakpoint(int ignoreCount, URI sourceUri, int startLine, int startColumn, int charLength, boolean oneShort) throws IOException {
+        return breakpoints.create(ignoreCount, sourceUri, startLine, startColumn, charLength, oneShort);
+    }
+
     /**
      * Sets a breakpoint to halt at a source line.
      * <p>
