@@ -1293,4 +1293,27 @@ public final class Debugger {
 
     // registers into Accessor.DEBUG
     static final AccessorDebug ACCESSOR = new AccessorDebug();
+
+    public SuspendedEvent createSuspendedEvent(Node haltedNode, MaterializedFrame haltedFrame) {
+        DebugExecutionContext context = getCurrentDebugContext();
+
+        final int contextStackDepth = (computeStackDepth() - context.contextStackBase) + 1;
+        final List<FrameInstance> frames = new ArrayList<>();
+        // TODO: get rid of code duplication
+        Truffle.getRuntime().iterateFrames(new FrameInstanceVisitor<FrameInstance>() {
+            int stackIndex = 1;
+
+            @Override
+            public FrameInstance visitFrame(FrameInstance frameInstance) {
+                if (stackIndex < contextStackDepth) {
+                    frames.add(frameInstance);
+                    stackIndex++;
+                    return null;
+                }
+                return frameInstance;
+            }
+        });
+
+        return new SuspendedEvent(context, haltedNode, HaltPosition.BEFORE, haltedFrame, Collections.unmodifiableList(frames), null);
+    }
 }
