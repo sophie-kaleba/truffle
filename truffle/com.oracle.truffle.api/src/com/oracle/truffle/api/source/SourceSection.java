@@ -225,6 +225,7 @@ public final class SourceSection {
      * @return the identifier of the section
      * @since 0.8 or earlier
      */
+    @Deprecated
     public String getIdentifier() {
         return identifier;
     }
