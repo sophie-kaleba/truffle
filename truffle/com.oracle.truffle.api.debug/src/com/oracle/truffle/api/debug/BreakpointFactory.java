@@ -59,6 +59,7 @@ import com.oracle.truffle.api.instrumentation.ExecutionEventNodeFactory;
 import com.oracle.truffle.api.instrumentation.Instrumenter;
 import com.oracle.truffle.api.instrumentation.SourceSectionFilter;
 import com.oracle.truffle.api.instrumentation.StandardTags;
+import com.oracle.truffle.api.instrumentation.SourceSectionFilter.Builder;
 import com.oracle.truffle.api.instrumentation.SourceSectionFilter.IndexRange;
 import com.oracle.truffle.api.nodes.DirectCallNode;
 import com.oracle.truffle.api.nodes.InvalidAssumptionException;
@@ -677,10 +678,22 @@ final class BreakpointFactory {
         }
 
         private void resolve(Source source) {
-            int line = ((URILocation) locationKey).line;
-            LineLocation lineLocation = source.createLineLocation(line);
-            final SourceSectionFilter query = SourceSectionFilter.newBuilder().sourceIs(lineLocation.getSource()).lineStartsIn(IndexRange.byLength(lineLocation.getLineNumber(), 1)).tagIs(
-                            StandardTags.StatementTag.class).build();
+            Builder builder = SourceSectionFilter.newBuilder().sourceIs(source);
+            if (locationKey instanceof URILocation) {
+                int line = ((URILocation) locationKey).line;
+                LineLocation lineLocation = source.createLineLocation(line);
+                builder.lineStartsIn(
+                                IndexRange.byLength(lineLocation.getLineNumber(), 1));
+            } else {
+                assert locationKey instanceof URISectionLocation : "Missing support for other type of breakpoint?";
+                URISectionLocation loc = (URISectionLocation) locationKey;
+                SourceSection ss = source.createSection(null, loc.startLine, loc.startColumn, loc.charLength);
+                builder.sourceSectionEquals(ss);
+            }
+
+            builder.tagIs(StandardTags.StatementTag.class);
+
+            final SourceSectionFilter query = builder.build();
             locationQuery = query;
             if (conditionExpr != null) {
                 // @formatter:off
