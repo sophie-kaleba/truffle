@@ -435,7 +435,7 @@ final class BreakpointFactory {
             }
         }
         Set<URISectionLocation> sectionLocations = uriSectionLocations.get(uri);
-        if (locations != null) {
+        if (sectionLocations != null) {
             for (URISectionLocation l : sectionLocations) {
                 breakpoints.get(l).resolve(source);
             }
