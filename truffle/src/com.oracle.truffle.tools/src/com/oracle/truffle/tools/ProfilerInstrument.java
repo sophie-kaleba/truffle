@@ -29,7 +29,7 @@ import com.oracle.truffle.api.instrumentation.TruffleInstrument.Registration;
 
 @Registration(id = ProfilerInstrument.ID, services = Profiler.class)
 public class ProfilerInstrument extends TruffleInstrument {
-    static final String ID = "profiler";
+    public static final String ID = "profiler";
 
     private Profiler profiler;
 
