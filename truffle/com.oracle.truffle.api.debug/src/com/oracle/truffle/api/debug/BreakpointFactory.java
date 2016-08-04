@@ -462,8 +462,11 @@ final class BreakpointFactory {
         @CompilationFinal private boolean isEnabled;
         @CompilationFinal private Assumption enabledUnchangedAssumption;
 
+        private boolean hasCondition;
         private String conditionExpr;
         private Source conditionSource;
+        private SimpleCondition conditionObj;
+
         @SuppressWarnings("rawtypes") private Class<? extends TruffleLanguage> condLangClass;
 
         private BreakpointImpl(Object key, SourceSectionFilter query, int ignoreCount, boolean isOneShot) {
@@ -537,14 +540,38 @@ final class BreakpointFactory {
             if (binding != null) {
                 binding.dispose();
                 if (expr == null) {
+                    hasCondition = false;
                     conditionSource = null;
+                    conditionObj = null;
                     binding = instrumenter.attachListener(locationQuery, new BreakpointListener(this));
                 } else {
                     conditionSource = Source.newBuilder(expr).name("breakpoint condition from text: " + expr).mimeType("text/plain").build();
+                    conditionObj = null;
+                    hasCondition = true;
                     binding = instrumenter.attachFactory(locationQuery, this);
                 }
             }
             conditionExpr = expr;
+        }
+
+        @Override
+        public void setCondition(SimpleCondition condition) {
+            assert getState() != DISPOSED : "disposed breakpoints are unusable";
+            if (binding != null) {
+                binding.dispose();
+                if (condition == null) {
+                    hasCondition = false;
+                    conditionSource = null;
+                    conditionObj = null;
+                    binding = instrumenter.attachListener(locationQuery, new BreakpointListener(this));
+                } else {
+                    conditionObj = condition;
+                    conditionSource = null;
+                    hasCondition = true;
+                    binding = instrumenter.attachFactory(locationQuery, this);
+                }
+            }
+            conditionExpr = null;
         }
 
         @Override
@@ -587,22 +614,27 @@ final class BreakpointFactory {
         /* EventNodeFactory for breakpoint condition */
         @Override
         public ExecutionEventNode create(EventContext context) {
-            assert conditionSource != null;
+            assert hasCondition;
             final Node instrumentedNode = context.getInstrumentedNode();
-            if (condLangClass == null) {
-                condLangClass = Debugger.AccessorDebug.nodesAccess().findLanguage(instrumentedNode.getRootNode());
+            if (conditionSource != null) {
                 if (condLangClass == null) {
-                    warningLog.addWarning("Unable to find language for condition: \"" + conditionSource.getCode() + "\" at " + getLocationDescription());
+                    condLangClass = Debugger.AccessorDebug.nodesAccess().findLanguage(instrumentedNode.getRootNode());
+                    if (condLangClass == null) {
+                        warningLog.addWarning("Unable to find language for condition: \"" + conditionSource.getCode() + "\" at " + getLocationDescription());
+                        return null;
+                    }
+                }
+                try {
+                    final CallTarget callTarget = Debugger.ACCESSOR.parse(condLangClass, conditionSource, instrumentedNode, new String[0]);
+                    final DirectCallNode callNode = Truffle.getRuntime().createDirectCallNode(callTarget);
+                    return new BreakpointConditionEventNode(context, callNode);
+                } catch (IOException e) {
+                    warningLog.addWarning("Unable to parse breakpoint condition: \"" + conditionSource.getCode() + "\" at " + getLocationDescription());
                     return null;
                 }
-            }
-            try {
-                final CallTarget callTarget = Debugger.ACCESSOR.parse(condLangClass, conditionSource, instrumentedNode, new String[0]);
-                final DirectCallNode callNode = Truffle.getRuntime().createDirectCallNode(callTarget);
-                return new BreakpointConditionEventNode(context, callNode);
-            } catch (IOException e) {
-                warningLog.addWarning("Unable to parse breakpoint condition: \"" + conditionSource.getCode() + "\" at " + getLocationDescription());
-                return null;
+            } else {
+                assert conditionObj != null;
+                return new BreakpointSimpleConditionEventNode(context, conditionObj);
             }
         }
 
@@ -695,13 +727,15 @@ final class BreakpointFactory {
 
             final SourceSectionFilter query = builder.build();
             locationQuery = query;
-            if (conditionExpr != null) {
-                // @formatter:off
-                conditionSource = Source.newBuilder(conditionExpr).
-                    name("breakpoint condition from text: " + conditionExpr).
-                    mimeType(source.getMimeType()).
-                    build();
-                // @formatter:on
+            if (hasCondition) {
+                if (conditionExpr != null) {
+                    // @formatter:off
+                    conditionSource = Source.newBuilder(conditionExpr).
+                        name("breakpoint condition from text: " + conditionExpr).
+                        mimeType(source.getMimeType()).
+                        build();
+                    // @formatter:on
+                }
                 binding = instrumenter.attachFactory(locationQuery, this);
             } else {
                 binding = instrumenter.attachListener(query, new BreakpointListener(this));
@@ -711,7 +745,7 @@ final class BreakpointFactory {
         /** Attached to implement a conditional breakpoint. */
         private class BreakpointConditionEventNode extends ExecutionEventNode {
             @Child DirectCallNode callNode;
-            final EventContext context;
+            private final EventContext context;
 
             BreakpointConditionEventNode(EventContext context, DirectCallNode callNode) {
                 this.context = context;
@@ -734,6 +768,27 @@ final class BreakpointFactory {
                     }
                 } catch (Exception ex) {
                     conditionFailure(context, frame, new RuntimeException("breakpoint condition failure: " + conditionSource.getCode() + ex.getMessage()));
+                }
+            }
+        }
+
+        private class BreakpointSimpleConditionEventNode extends ExecutionEventNode {
+            private final EventContext context;
+            private final SimpleCondition condition;
+
+            BreakpointSimpleConditionEventNode(EventContext context, SimpleCondition condition) {
+                this.context = context;
+                this.condition = condition;
+            }
+
+            @Override
+            protected void onEnter(VirtualFrame frame) {
+                boolean result = condition.evaluate();
+                if (TRACE) {
+                    trace("breakpoint simple cond=%b %s %s", result, condition.getClass().getSimpleName(), getShortDescription());
+                }
+                if (result) {
+                    nodeEnter(context, frame);
                 }
             }
         }

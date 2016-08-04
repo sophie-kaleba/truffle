@@ -95,6 +95,15 @@ public abstract class Breakpoint {
 
     }
 
+    /**
+     * A simple way to have conditional breakpoints, without language-level expressions.
+     *
+     * This is meant to implement complex breakpoints for the debugger.
+     */
+    public interface SimpleCondition {
+        boolean evaluate();
+    }
+
     Breakpoint() {
     }
 
@@ -131,6 +140,8 @@ public abstract class Breakpoint {
      * @since 0.9
      */
     public abstract void setCondition(String expr) throws IOException;
+
+    public abstract void setCondition(SimpleCondition condition);
 
     /**
      * Gets the text that defines the current condition on this breakpoint; {@code null} if this
