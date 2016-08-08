@@ -52,6 +52,7 @@ import com.oracle.truffle.api.instrumentation.ExecutionEventListener;
 import com.oracle.truffle.api.instrumentation.Instrumenter;
 import com.oracle.truffle.api.instrumentation.SourceSectionFilter;
 import com.oracle.truffle.api.instrumentation.StandardTags.CallTag;
+import com.oracle.truffle.api.instrumentation.StandardTags.RootTag;
 import com.oracle.truffle.api.instrumentation.StandardTags.StatementTag;
 import com.oracle.truffle.api.nodes.Node;
 import com.oracle.truffle.api.nodes.RootNode;
@@ -92,6 +93,7 @@ public final class Debugger {
 
     private static final SourceSectionFilter CALL_FILTER = SourceSectionFilter.newBuilder().tagIs(CallTag.class).build();
     private static final SourceSectionFilter HALT_FILTER = SourceSectionFilter.newBuilder().tagIs(StatementTag.class).build();
+    private static final SourceSectionFilter ROOT_FILTER = SourceSectionFilter.newBuilder().tagIs(RootTag.class).build();
     private static final Assumption NO_DEBUGGER = Truffle.getRuntime().createAssumption("No debugger assumption");
 
     private static boolean matchesHaltFilter(EventContext eventContext) {
@@ -414,6 +416,29 @@ public final class Debugger {
     }
 
     /**
+     * Prepare to <em>StepUntilRootTag</em> when guest language program execution resumes. In this
+     * mode:
+     * <ul>
+     * <li>User breakpoints are disabled.</li>
+     * <li>Execution will continue until either:
+     * <ol>
+     * <li>execution arrives at a node holding {@link #ROOT_TAG}, <strong>or:</strong></li>
+     * <li>execution completes.</li>
+     * </ol>
+     * <li>StepUntilRootTag mode persists only through one resumption, and reverts by default to
+     * Continue mode.</li>
+     * </ul>
+     */
+    @TruffleBoundary
+    void prepareStepUntilRootTag(DebugExecutionContext context) {
+        context.setAction(new StepUntilRootTag());
+    }
+
+    public void prepareStepUntilRootTag() {
+        prepareStepUntilRootTag(getCurrentDebugContext());
+    }
+
+    /**
      * Prepare to <em>StepOut</em> when guest language program execution resumes. In this mode:
      * <ul>
      * <li>User breakpoints are enabled.</li>
@@ -650,6 +675,58 @@ public final class Debugger {
         @Override
         boolean wouldHaltAt(EventContext eventContext) {
             return matchesHaltFilter(eventContext) && unfinishedStepCount <= 1;
+        }
+    }
+
+    /**
+     * Strategy: per-{@link #ROOT_TAG} stepping.
+     * <ul>
+     * <li>User breakpoints are enabled.</li>
+     * <li>Execution continues until either:
+     * <ol>
+     * <li>execution <em>arrives</em> at a {@link #ROOT_TAG} node, <strong>or:</strong></li>
+     * <li>execution completes.</li>
+     * </ol>
+     * </ul>
+     *
+     * @see Debugger#prepareStepInto(int)
+     */
+    private final class StepUntilRootTag extends StepStrategy {
+        private EventBinding<?> beforeRootBinding;
+
+        @Override
+        protected void setStrategy(final int startStackDepth) {
+            traceAction("SET ACTION", startStackDepth, -1);
+            beforeRootBinding = instrumenter.attachListener(ROOT_FILTER, new ExecutionEventListener() {
+
+                public void onEnter(EventContext eventContext, VirtualFrame frame) {
+                    // Normal step, "before" halt location
+                    traceAction("BEGIN onEnter()", startStackDepth, -1);
+                    halt(eventContext, frame.materialize(), HaltPosition.BEFORE);
+                    traceAction("END onEnter()", startStackDepth, -1);
+                }
+
+                public void onReturnValue(EventContext eventContext, VirtualFrame frame, Object result) {
+                }
+
+                public void onReturnExceptional(EventContext eventContext, VirtualFrame frame, Throwable exception) {
+                }
+            });
+        }
+
+        @Override
+        protected void unsetStrategy() {
+            if (beforeRootBinding == null) {
+                // Instrumentation/language failure
+                return;
+            }
+            traceAction("CLEAR ACTION", -1, -1);
+            beforeRootBinding.dispose();
+        }
+
+        @Override
+        boolean wouldHaltAt(EventContext eventContext) {
+            return matchesHaltFilter(eventContext);
         }
     }
 
