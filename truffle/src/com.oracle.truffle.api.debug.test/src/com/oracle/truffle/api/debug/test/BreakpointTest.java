@@ -558,7 +558,7 @@ public class BreakpointTest extends AbstractDebugTest {
             // O.K.
         }
         try {
-            newBP.setCondition(null);
+            newBP.setCondition((String) null);
             Assert.fail();
         } catch (IllegalStateException ex) {
             // O.K.
