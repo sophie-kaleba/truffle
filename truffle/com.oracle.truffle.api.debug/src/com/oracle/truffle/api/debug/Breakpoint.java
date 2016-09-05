@@ -104,6 +104,15 @@ import com.oracle.truffle.api.vm.PolyglotEngine;
 public final class Breakpoint {
 
     /**
+     * A simple way to have conditional breakpoints, without language-level expressions.
+     *
+     * This is meant to implement complex breakpoints for the debugger.
+     */
+    public interface SimpleCondition {
+        boolean evaluate();
+    }
+
+    /**
      * A general model of the states occupied by a {@link Breakpoint} during its lifetime.
      *
      * @since 0.9
@@ -180,7 +189,9 @@ public final class Breakpoint {
     private volatile boolean resolved;
     private volatile int ignoreCount;
     private volatile boolean disposed;
+
     private volatile String condition;
+    private volatile SimpleCondition simpleCondition;
 
     /* We use long instead of int in the implementation to avoid not hitting again on overflows. */
     private final AtomicLong hitCount = new AtomicLong();
@@ -290,11 +301,22 @@ public final class Breakpoint {
      */
     public synchronized void setCondition(String expression) throws IOException {
         this.condition = expression;
+        this.simpleCondition = null;
+        invalidateConditionUnchangedAssumption();
+    }
+
+    private void invalidateConditionUnchangedAssumption() {
         Assumption assumption = conditionUnchanged;
         if (assumption != null) {
             this.conditionUnchanged = null;
             assumption.invalidate();
         }
+    }
+
+    public synchronized void setCondition(SimpleCondition condition) {
+        this.simpleCondition = condition;
+        this.condition = null;
+        invalidateConditionUnchangedAssumption();
     }
 
     /*
@@ -739,13 +761,18 @@ public final class Breakpoint {
         private final Breakpoint breakpoint;
         private final BranchProfile breakBranch = BranchProfile.create();
 
-        @Child private ConditionalBreakNode breakCondition;
+        @Child private AbstractConditionalBreakNode breakCondition;
 
         BreakpointNode(Breakpoint breakpoint, EventContext context) {
             super(context);
             this.breakpoint = breakpoint;
             if (breakpoint.condition != null) {
+                assert breakpoint.simpleCondition == null : "We don't support both conditions being set at the same time.";
                 this.breakCondition = new ConditionalBreakNode(context, breakpoint);
+            }
+            if (breakpoint.simpleCondition != null) {
+                assert breakpoint.condition == null : "We don't support both conditions being set at the same time.";
+                this.breakCondition = new SimpleConditionalBreakNode(context, breakpoint);
             }
         }
 
@@ -814,19 +841,47 @@ public final class Breakpoint {
 
     }
 
-    private static class ConditionalBreakNode extends Node {
+    private abstract static class AbstractConditionalBreakNode extends Node {
+        protected final EventContext context;
+        protected final Breakpoint breakpoint;
+        @CompilationFinal protected Assumption conditionUnchanged;
 
-        private final EventContext context;
-        private final Breakpoint breakpoint;
-        @Child private DirectCallNode conditionCallNode;
-        @CompilationFinal private Assumption conditionUnchanged;
-
-        ConditionalBreakNode(EventContext context, Breakpoint breakpoint) {
+        AbstractConditionalBreakNode(EventContext context, Breakpoint breakpoint) {
             this.context = context;
             this.breakpoint = breakpoint;
             this.conditionUnchanged = breakpoint.getConditionUnchanged();
         }
 
+        abstract boolean shouldBreak(Frame frame);
+    }
+
+    private static class SimpleConditionalBreakNode extends AbstractConditionalBreakNode {
+        @CompilationFinal private SimpleCondition condition;
+
+        SimpleConditionalBreakNode(EventContext context, Breakpoint breakpoint) {
+            super(context, breakpoint);
+        }
+
+        @Override
+        boolean shouldBreak(Frame frame) {
+            if (!conditionUnchanged.isValid()) {
+                CompilerDirectives.transferToInterpreterAndInvalidate();
+                condition = breakpoint.simpleCondition;
+            }
+
+            return condition.evaluate();
+        }
+    }
+
+    private static class ConditionalBreakNode extends AbstractConditionalBreakNode {
+
+        @Child private DirectCallNode conditionCallNode;
+
+        ConditionalBreakNode(EventContext context, Breakpoint breakpoint) {
+            super(context, breakpoint);
+        }
+
+        @Override
         boolean shouldBreak(Frame frame) {
             if (conditionCallNode == null || !conditionUnchanged.isValid()) {
                 CompilerDirectives.transferToInterpreterAndInvalidate();
