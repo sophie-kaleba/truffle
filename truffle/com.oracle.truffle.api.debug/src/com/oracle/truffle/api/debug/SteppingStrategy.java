@@ -86,6 +86,10 @@ abstract class SteppingStrategy {
         return new StepOver(stepCount);
     }
 
+    public static SteppingStrategy createStepUntilNextRootNode() {
+        return new StepUntilNextRootNode();
+    }
+
     // TODO (mlvdv) wish there were fast-path access to stack depth
     // TODO (chumer) wish so too
     @TruffleBoundary
@@ -346,6 +350,22 @@ abstract class SteppingStrategy {
             return String.format("STEP_OVER(startStackDepth=%s, stepCount=%s)", startStackDepth, unfinishedStepCount);
         }
 
+    }
+
+    private static final class StepUntilNextRootNode extends SteppingStrategy {
+        @Override
+        void initialize() {
+        }
+
+        @Override
+        boolean step(DebuggerSession steppingSession, EventContext context, SteppingLocation location) {
+            return location == SteppingLocation.BEFORE_ROOT_NODE;
+        }
+
+        @Override
+        public String toString() {
+            return "STEP_UNTIL_NEXT_ROOTNODE";
+        }
     }
 
 }
