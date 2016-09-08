@@ -152,7 +152,7 @@ public final class DebuggerSession implements Closeable {
 
     private static final AtomicInteger SESSIONS = new AtomicInteger(0);
 
-    enum SteppingLocation {
+    public enum SteppingLocation {
         AFTER_CALL,
         BEFORE_STATEMENT
     }
@@ -605,13 +605,22 @@ public final class DebuggerSession implements Closeable {
         }
     }
 
+    public void doSuspend(MaterializedFrame frame, SteppingLocation steppingLocation) {
+        doSuspend(null, steppingLocation, frame, null, null, null);
+    }
+
     private void doSuspend(DebuggerNode source, MaterializedFrame frame, Object returnValue, List<Breakpoint> breaks, Map<Breakpoint, Throwable> conditionFailures) {
+        doSuspend(source.getContext(), source.getSteppingLocation(), frame, returnValue, breaks, conditionFailures);
+    }
+
+    private void doSuspend(EventContext context, SteppingLocation steppingLocation, MaterializedFrame frame, Object returnValue, List<Breakpoint> breaks,
+                    Map<Breakpoint, Throwable> conditionFailures) {
         CompilerAsserts.neverPartOfCompilation();
         Thread currentThread = Thread.currentThread();
 
         SuspendedEvent suspendedEvent;
         try {
-            suspendedEvent = new SuspendedEvent(this, currentThread, source.getContext(), frame, source.getSteppingLocation(), returnValue, breaks, conditionFailures);
+            suspendedEvent = new SuspendedEvent(this, currentThread, context, frame, steppingLocation, returnValue, breaks, conditionFailures);
             currentSuspendedEventMap.put(currentThread, suspendedEvent);
             try {
                 callback.onSuspend(suspendedEvent);
@@ -632,6 +641,10 @@ public final class DebuggerSession implements Closeable {
             return;
         }
 
+        prepareStepping(context, steppingLocation, currentThread, suspendedEvent);
+    }
+
+    private void prepareStepping(EventContext context, SteppingLocation steppingLocation, Thread currentThread, SuspendedEvent suspendedEvent) throws KillException {
         SteppingStrategy strategy = suspendedEvent.getNextStrategy();
         if (!legacy && !strategy.isKill()) {
             // suspend(...) has been called during SuspendedEvent notification. this is only
@@ -644,7 +657,7 @@ public final class DebuggerSession implements Closeable {
         strategy.initialize();
 
         if (Debugger.TRACE) {
-            trace("end suspend with strategy %s at %s location %s", strategy, source.getContext(), source.getSteppingLocation());
+            trace("end suspend with strategy %s at %s location %s", strategy, context, steppingLocation);
         }
 
         setSteppingStrategy(currentThread, strategy, true);
