@@ -156,9 +156,9 @@ public final class SuspendedEvent {
         if (disposed) {
             throw new IllegalStateException("Not in a suspended state.");
         }
-        if (Thread.currentThread() != thread) {
-            throw new IllegalStateException("Illegal thread access.");
-        }
+// if (Thread.currentThread() != thread) {
+// throw new IllegalStateException("Illegal thread access.");
+// }
     }
 
     SteppingStrategy getNextStrategy() {
