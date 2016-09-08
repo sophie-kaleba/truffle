@@ -161,7 +161,7 @@ public final class DebuggerSession implements Closeable {
 
     private static final AtomicInteger SESSIONS = new AtomicInteger(0);
 
-    enum SteppingLocation {
+    public enum SteppingLocation {
         AFTER_CALL,
         AFTER_STATEMENT,
         BEFORE_STATEMENT
@@ -796,6 +796,14 @@ public final class DebuggerSession implements Closeable {
         doSuspend(context, SteppingLocation.AFTER_CALL, caller.frame, null, Collections.emptyList(), Collections.emptyMap());
     }
 
+    public void doSuspend(MaterializedFrame frame, SteppingLocation steppingLocation) {
+        doSuspend(null, steppingLocation, frame, null, null, null);
+    }
+
+    private void doSuspend(DebuggerNode source, MaterializedFrame frame, Object returnValue, List<Breakpoint> breaks, Map<Breakpoint, Throwable> conditionFailures) {
+        doSuspend(SuspendedContext.create(source.getContext()), source.getSteppingLocation(), frame, returnValue, breaks, conditionFailures);
+    }
+
     private void doSuspend(SuspendedContext context, SteppingLocation steppingLocation, MaterializedFrame frame, Object returnValue, List<Breakpoint> breaks,
                     Map<Breakpoint, Throwable> conditionFailures) {
         CompilerAsserts.neverPartOfCompilation();
@@ -824,6 +832,10 @@ public final class DebuggerSession implements Closeable {
             return;
         }
 
+        prepareStepping(context, steppingLocation, currentThread, suspendedEvent);
+    }
+
+    private void prepareStepping(SuspendedContext context, SteppingLocation steppingLocation, Thread currentThread, SuspendedEvent suspendedEvent) throws KillException {
         SteppingStrategy strategy = suspendedEvent.getNextStrategy();
         if (!strategy.isKill()) {
             // suspend(...) has been called during SuspendedEvent notification. this is only
