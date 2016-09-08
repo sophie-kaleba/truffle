@@ -24,7 +24,11 @@
  */
 package com.oracle.truffle.api.debug;
 
+import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
+import com.oracle.truffle.api.Truffle;
 import com.oracle.truffle.api.debug.DebuggerSession.SteppingLocation;
+import com.oracle.truffle.api.frame.FrameInstance;
+import com.oracle.truffle.api.frame.FrameInstanceVisitor;
 import com.oracle.truffle.api.instrumentation.EventContext;
 
 /**
@@ -108,6 +112,10 @@ abstract class SteppingStrategy {
 
     static SteppingStrategy createComposed(SteppingStrategy strategy1, SteppingStrategy strategy2) {
         return new ComposedStrategy(strategy1, strategy2);
+    }
+
+    public static SteppingStrategy createStepUntilNextRootNode() {
+        return new StepUntilNextRootNode();
     }
 
     private static final class Kill extends SteppingStrategy {
@@ -502,6 +510,22 @@ abstract class SteppingStrategy {
             }
 
             return "COMPOSED(" + all + ")";
+        }
+    }
+
+    private static final class StepUntilNextRootNode extends SteppingStrategy {
+        @Override
+        void initialize() {
+        }
+
+        @Override
+        boolean step(DebuggerSession steppingSession, EventContext context, SteppingLocation location) {
+            return location == SteppingLocation.BEFORE_ROOT_NODE;
+        }
+
+        @Override
+        public String toString() {
+            return "STEP_UNTIL_NEXT_ROOTNODE";
         }
     }
 }
