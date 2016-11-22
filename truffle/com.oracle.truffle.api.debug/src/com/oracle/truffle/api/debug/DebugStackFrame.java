@@ -332,4 +332,11 @@ public final class DebugStackFrame implements Iterable<DebugValue> {
         event.verifyValidState(allowDifferentThread);
     }
 
+    public MaterializedFrame getFrame() {
+        return findTruffleFrame();
+    }
+
+    public RootNode getRootNode() {
+        return findCurrentRoot();
+    }
 }
