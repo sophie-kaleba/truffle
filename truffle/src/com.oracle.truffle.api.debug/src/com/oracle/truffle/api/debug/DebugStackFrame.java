@@ -335,4 +335,11 @@ public final class DebugStackFrame {
         event.verifyValidState(allowDifferentThread);
     }
 
+    public MaterializedFrame getFrame() {
+        return findTruffleFrame();
+    }
+
+    public RootNode getRootNode() {
+        return findCurrentRoot();
+    }
 }
