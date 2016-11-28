@@ -31,6 +31,7 @@ import com.oracle.truffle.api.frame.FrameInstance;
 import com.oracle.truffle.api.frame.FrameInstanceVisitor;
 import com.oracle.truffle.api.instrumentation.EventContext;
 import com.oracle.truffle.api.instrumentation.ProbeNode;
+import com.oracle.truffle.api.nodes.Node;
 
 /**
  * Implementation of a strategy for a debugger <em>action</em> that allows execution to continue
@@ -129,6 +130,10 @@ abstract class SteppingStrategy {
 
     public static SteppingStrategy createStepUntilNextRootNode() {
         return new StepUntilNextRootNode();
+    }
+
+    public static SteppingStrategy createStepAfterNextRootNode() {
+        return new StepAfterNextRootNode();
     }
 
     private static final class Kill extends SteppingStrategy {
@@ -596,6 +601,33 @@ abstract class SteppingStrategy {
         @Override
         public String toString() {
             return "STEP_UNTIL_NEXT_ROOTNODE";
+        }
+    }
+
+    private static final class StepAfterNextRootNode extends SteppingStrategy {
+
+        private Node firstRootNode;
+
+        @Override
+        void initialize() {
+        }
+
+        @Override
+        boolean step(DebuggerSession steppingSession, EventContext context, SteppingLocation location) {
+            if (location != SteppingLocation.AFTER_ROOT_NODE) {
+                if (firstRootNode == null) {
+                    assert location == SteppingLocation.BEFORE_ROOT_NODE;
+                    firstRootNode = context.getInstrumentedNode();
+                }
+                return false;
+            }
+            assert firstRootNode != null : "Need to have seen a BEFORE_ROOT_NODE before";
+            return firstRootNode.getSourceSection() == context.getInstrumentedNode().getSourceSection();
+        }
+
+        @Override
+        public String toString() {
+            return "STEP_AFTER_NEXT_ROOTNODE";
         }
     }
 }
