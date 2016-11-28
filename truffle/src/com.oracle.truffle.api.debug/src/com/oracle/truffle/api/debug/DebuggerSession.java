@@ -165,6 +165,7 @@ public final class DebuggerSession implements Closeable {
         AFTER_CALL,
         AFTER_STATEMENT,
         BEFORE_ROOT_NODE,
+        AFTER_ROOT_NODE,
         BEFORE_STATEMENT
     }
 
@@ -177,7 +178,8 @@ public final class DebuggerSession implements Closeable {
     private EventBinding<? extends ExecutionEventNodeFactory> rootBinding;
 
     // SM: for advanced stepping operations
-    private EventBinding<? extends ExecutionEventNodeFactory> rootNodeBinding;
+    private EventBinding<? extends ExecutionEventNodeFactory> beforeRootNodeBinding;
+    private EventBinding<? extends ExecutionEventNodeFactory> afterRootNodeBinding;
 
     private final ConcurrentHashMap<Thread, SuspendedEvent> currentSuspendedEventMap = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Thread, SteppingStrategy> strategyMap = new ConcurrentHashMap<>();
@@ -396,10 +398,23 @@ public final class DebuggerSession implements Closeable {
         setSteppingStrategy(t, SteppingStrategy.createContinue(), true);
     }
 
+    /**
+     * Run to the next root node. Suspend execution before executing the node.
+     */
     public void prepareSteppingUntilNextRootNode() {
         Thread current = Thread.currentThread();
         // TODO: not sure about update stepping yet true? false?
         setSteppingStrategy(current, SteppingStrategy.createStepUntilNextRootNode(), false);
+    }
+
+    /**
+     * Run to the next root node, remember it, and execute all subexpressions. Once it returns and
+     * arrives on the return edge, suspend execution.
+     */
+    public void prepareSteppingAfterNextRootNode() {
+        Thread current = Thread.currentThread();
+        // TODO: not sure about update stepping yet true? false?
+        setSteppingStrategy(current, SteppingStrategy.createStepAfterNextRootNode(), false);
     }
 
     private synchronized void setSteppingStrategy(Thread thread, SteppingStrategy strategy, boolean updateStepping) {
@@ -479,9 +494,14 @@ public final class DebuggerSession implements Closeable {
                     return new CallSteppingNode(context);
                 }
             });
-            this.rootNodeBinding = createBinding(RootTag.class, includeInternalCode, sFilter, new ExecutionEventNodeFactory() {
+            this.beforeRootNodeBinding = createBinding(RootTag.class, includeInternalCode, sFilter, new ExecutionEventNodeFactory() {
                 public ExecutionEventNode create(EventContext context) {
-                    return new RootNodeSteppingNode(context);
+                    return new RootNodeSteppingNode(context, SteppingLocation.BEFORE_ROOT_NODE);
+                }
+            });
+            this.afterRootNodeBinding = createBinding(RootTag.class, includeInternalCode, sFilter, new ExecutionEventNodeFactory() {
+                public ExecutionEventNode create(EventContext context) {
+                    return new RootNodeSteppingNode(context, SteppingLocation.AFTER_ROOT_NODE);
                 }
             });
         }
@@ -506,12 +526,14 @@ public final class DebuggerSession implements Closeable {
         if (statementBinding != null) {
             callBinding.dispose();
             statementBinding.dispose();
-            rootNodeBinding.dispose();
+            beforeRootNodeBinding.dispose();
+            afterRootNodeBinding.dispose();
             callBinding = null;
             rootBinding.dispose();
             rootBinding = null;
             statementBinding = null;
-            rootNodeBinding = null;
+            beforeRootNodeBinding = null;
+            afterRootNodeBinding = null;
             if (Debugger.TRACE) {
                 trace("disabled stepping");
             }
@@ -906,7 +928,7 @@ public final class DebuggerSession implements Closeable {
             }
         } else {
             if (source.getSteppingLocation() == SteppingLocation.AFTER_CALL ||
-                source.getSteppingLocation() == SteppingLocation.AFTER_STATEMENT) {
+                            source.getSteppingLocation() == SteppingLocation.AFTER_STATEMENT) {
                 // there is only one binding that can lead to a after event
                 if (stepping.get()) {
                     EventBinding<? extends ExecutionEventNodeFactory> localCallBinding = callBinding;
@@ -917,11 +939,17 @@ public final class DebuggerSession implements Closeable {
                         }
                     }
                 }
-            } else {
-                assert source.getSteppingLocation() == SteppingLocation.BEFORE_ROOT_NODE;
+            } else if (source.getSteppingLocation() == SteppingLocation.BEFORE_ROOT_NODE) {
                 // Stefan: I assume there is also only one binding for a before rootnode event
                 if (stepping.get()) {
-                    assert source.getContext().lookupExecutionEventNode(rootNodeBinding) == source;
+                    assert source.getContext().lookupExecutionEventNode(beforeRootNodeBinding) == source;
+                    nodes.add(source);
+                }
+            } else {
+                assert source.getSteppingLocation() == SteppingLocation.AFTER_ROOT_NODE;
+                // Stefan: I assume there is also only one binding for a after rootnode event
+                if (stepping.get()) {
+                    assert source.getContext().lookupExecutionEventNode(afterRootNodeBinding) == source;
                     nodes.add(source);
                 }
             }
@@ -1025,13 +1053,22 @@ public final class DebuggerSession implements Closeable {
 
     private final class RootNodeSteppingNode extends DebuggerNode {
 
-        RootNodeSteppingNode(EventContext context) {
+        private final SteppingLocation steppingLocation;
+
+        RootNodeSteppingNode(EventContext context, SteppingLocation steppingLocation) {
             super(context);
+            assert steppingLocation == SteppingLocation.BEFORE_ROOT_NODE ||
+                            steppingLocation == SteppingLocation.AFTER_ROOT_NODE : "Only root node related locations are supported.";
+            this.steppingLocation = steppingLocation;
         }
 
         @Override
         EventBinding<?> getBinding() {
-            return rootNodeBinding;
+            if (steppingLocation == SteppingLocation.BEFORE_ROOT_NODE) {
+                return beforeRootNodeBinding;
+            } else {
+                return afterRootNodeBinding;
+            }
         }
 
         @Override
@@ -1041,14 +1078,28 @@ public final class DebuggerSession implements Closeable {
 
         @Override
         protected void onEnter(VirtualFrame frame) {
-            if (stepping.get()) {
+            if (steppingLocation == SteppingLocation.BEFORE_ROOT_NODE) {
                 notifyCallback(this, frame.materialize(), null, null);
             }
         }
 
         @Override
+        protected void onReturnValue(VirtualFrame frame, Object result) {
+            if (steppingLocation == SteppingLocation.AFTER_ROOT_NODE) {
+                notifyCallback(this, frame.materialize(), result, null);
+            }
+        }
+
+        @Override
+        protected void onReturnExceptional(VirtualFrame frame, Throwable exception) {
+            if (steppingLocation == SteppingLocation.AFTER_ROOT_NODE) {
+                notifyCallback(this, frame.materialize(), exception, null);
+            }
+        }
+
+        @Override
         SteppingLocation getSteppingLocation() {
-            return SteppingLocation.BEFORE_ROOT_NODE;
+            return steppingLocation;
         }
     }
 
