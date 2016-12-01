@@ -617,6 +617,9 @@ public final class Breakpoint {
         private boolean oneShot;
         private SourceSection sourceSection;
 
+        private Class<?> tag = StatementTag.class; // use StatementTag.class as default to be
+                                                   // backwards compatible
+
         private Builder(Object key) {
             Objects.requireNonNull(key);
             this.key = key;
@@ -737,6 +740,14 @@ public final class Breakpoint {
             return this;
         }
 
+        public Builder tag(Class<?> filterTag) {
+            if (this.tag != StatementTag.class) {
+                throw new IllegalStateException("Tag had already been set to " + this.tag.getSimpleName() + " before.");
+            }
+            this.tag = filterTag;
+            return this;
+        }
+
         /**
          * @return a new breakpoint instance
          *
@@ -746,14 +757,14 @@ public final class Breakpoint {
             if (column != -1 ^ sectionLength != -1) {
                 throw new IllegalArgumentException("Column and sectionLength need to be set both to indicate a source section");
             }
-            SourceSectionFilter f = buildFilter();
+            SourceSectionFilter f = buildFilter(tag);
             BreakpointLocation location = new BreakpointLocation(key, line);
             Breakpoint breakpoint = new Breakpoint(location, f, oneShot);
             breakpoint.setIgnoreCount(ignoreCount);
             return breakpoint;
         }
 
-        private SourceSectionFilter buildFilter() {
+        private SourceSectionFilter buildFilter(Class<?> tag) {
             SourceSectionFilter.Builder f = SourceSectionFilter.newBuilder();
             if (key instanceof URI) {
                 final URI sourceUri = (URI) key;
@@ -783,7 +794,7 @@ public final class Breakpoint {
             if (sourceSection != null) {
                 f.sourceSectionEquals(sourceSection);
             }
-            f.tagIs(StatementTag.class);
+            f.tagIs(tag);
             return f.build();
         }
     }
