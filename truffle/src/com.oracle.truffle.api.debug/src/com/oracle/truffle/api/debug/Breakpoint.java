@@ -829,6 +829,7 @@ public final class Breakpoint {
 
         SimpleConditionalBreakNode(EventContext context, Breakpoint breakpoint) {
             super(context, breakpoint);
+            this.condition = breakpoint.simpleCondition;
         }
 
         @Override
