@@ -118,6 +118,7 @@ public class Breakpoint {
 
     private final SourceSectionFilter filter;
     private final BreakpointLocation locationKey;
+    private final SteppingLocation steppingLocation;
     private final boolean oneShot;
 
     private volatile Debugger debugger;
@@ -143,8 +144,9 @@ public class Breakpoint {
     private EventBinding<? extends ExecutionEventNodeFactory> breakpointBinding;
     private EventBinding<?> sourceBinding;
 
-    Breakpoint(BreakpointLocation key, SourceSectionFilter filter, boolean oneShot) {
+    Breakpoint(BreakpointLocation key, SourceSectionFilter filter, boolean oneShot, SteppingLocation steppingLocation) {
         this.locationKey = key;
+        this.steppingLocation = steppingLocation;
         this.filter = filter;
         this.oneShot = oneShot;
         this.enabled = true;
@@ -152,6 +154,7 @@ public class Breakpoint {
 
     private Breakpoint() {
         this.locationKey = null;
+        this.steppingLocation = null;
         this.filter = null;
         this.oneShot = false;
     }
@@ -526,7 +529,7 @@ public class Breakpoint {
 
         if (source != node) {
             // TODO: We're testing the breakpoint condition for a second time (GR-7398).
-            if (!((BreakpointNode) node).shouldBreak(frame)) {
+            if (!((AbstractBreakpointNode) node).shouldBreak(frame)) {
                 return false;
             }
         } else {
@@ -628,6 +631,7 @@ public class Breakpoint {
         private int ignoreCount;
         private boolean oneShot;
         private SourceSection sourceSection;
+        private SteppingLocation steppingLocation;
 
         private Class<?> tag = StatementTag.class; // use StatementTag.class as default to be
                                                    // backwards compatible
@@ -760,6 +764,14 @@ public class Breakpoint {
             return this;
         }
 
+        public Builder steppingLocation(SteppingLocation location) {
+            if (this.steppingLocation != null) {
+                throw new IllegalStateException("Stepping location was already set");
+            }
+            this.steppingLocation = location;
+            return this;
+        }
+
         /**
          * @return a new breakpoint instance
          *
@@ -771,7 +783,8 @@ public class Breakpoint {
             }
             SourceSectionFilter f = buildFilter(tag);
             BreakpointLocation location = new BreakpointLocation(key, line);
-            Breakpoint breakpoint = new Breakpoint(location, f, oneShot);
+            Breakpoint breakpoint = new Breakpoint(location, f, oneShot,
+                            steppingLocation == null ? SteppingLocation.BEFORE_STATEMENT : steppingLocation);
             breakpoint.setIgnoreCount(ignoreCount);
             return breakpoint;
         }
@@ -818,22 +831,27 @@ public class Breakpoint {
             if (!isResolved()) {
                 resolveBreakpoint();
             }
-            return new BreakpointNode(Breakpoint.this, context);
+            if (steppingLocation == SteppingLocation.BEFORE_STATEMENT) {
+                return new BreakpointBeforeNode(Breakpoint.this, context);
+            } else {
+                assert steppingLocation == SteppingLocation.AFTER_STATEMENT;
+                return new BreakpointAfterNode(Breakpoint.this, context);
+            }
         }
 
     }
 
-    private static class BreakpointNode extends DebuggerNode {
+    private abstract static class AbstractBreakpointNode extends DebuggerNode {
 
-        private final Breakpoint breakpoint;
-        private final BranchProfile breakBranch = BranchProfile.create();
+        protected final Breakpoint breakpoint;
+        protected final BranchProfile breakBranch = BranchProfile.create();
 
-        @Child private AbstractConditionalBreakNode breakCondition;
-        @CompilationFinal private Assumption conditionExistsUnchanged;
+        @Child protected AbstractConditionalBreakNode breakCondition;
+        @CompilationFinal protected Assumption conditionExistsUnchanged;
         @CompilationFinal(dimensions = 1) private DebuggerSession[] sessions;
         @CompilationFinal private Assumption sessionsUnchanged;
 
-        BreakpointNode(Breakpoint breakpoint, EventContext context) {
+        AbstractBreakpointNode(Breakpoint breakpoint, EventContext context) {
             super(context);
             this.breakpoint = breakpoint;
             initializeSessions();
@@ -868,18 +886,17 @@ public class Breakpoint {
         }
 
         @Override
-        Breakpoint getBreakpoint() {
+        final Breakpoint getBreakpoint() {
             return breakpoint;
         }
 
         @Override
-        EventBinding<?> getBinding() {
+        final EventBinding<?> getBinding() {
             return breakpoint.breakpointBinding;
         }
 
-        @Override
         @ExplodeLoop
-        protected void onEnter(VirtualFrame frame) {
+        protected final void checkAndDoBreak(VirtualFrame frame) {
             if (!sessionsUnchanged.isValid()) {
                 CompilerDirectives.transferToInterpreterAndInvalidate();
                 initializeSessions();
@@ -928,7 +945,45 @@ public class Breakpoint {
             }
             return true;
         }
+    }
 
+    private static final class BreakpointBeforeNode extends AbstractBreakpointNode {
+
+        BreakpointBeforeNode(Breakpoint breakpoint, EventContext context) {
+            super(breakpoint, context);
+        }
+
+        @Override
+        SteppingLocation getSteppingLocation() {
+            return SteppingLocation.BEFORE_STATEMENT;
+        }
+
+        @Override
+        protected void onEnter(VirtualFrame frame) {
+            checkAndDoBreak(frame);
+        }
+    }
+
+    private static final class BreakpointAfterNode extends AbstractBreakpointNode {
+
+        BreakpointAfterNode(Breakpoint breakpoint, EventContext context) {
+            super(breakpoint, context);
+        }
+
+        @Override
+        SteppingLocation getSteppingLocation() {
+            return SteppingLocation.AFTER_STATEMENT;
+        }
+
+        @Override
+        protected void onReturnValue(VirtualFrame frame, Object result) {
+            checkAndDoBreak(frame);
+        }
+
+        @Override
+        protected void onReturnExceptional(VirtualFrame frame, Throwable exception) {
+            checkAndDoBreak(frame);
+        }
     }
 
     static final class BreakpointConditionFailure extends SlowPathException {
