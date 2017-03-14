@@ -156,7 +156,8 @@ public final class DebuggerSession implements Closeable {
         AFTER_CALL,
         BEFORE_ROOT_NODE,
         AFTER_ROOT_NODE,
-        BEFORE_STATEMENT
+        BEFORE_STATEMENT,
+        AFTER_STATEMENT
     }
 
     private final Debugger debugger;
@@ -192,7 +193,7 @@ public final class DebuggerSession implements Closeable {
         this.debugger = debugger;
         this.callback = callback;
         SourceSectionFilter filter = SourceSectionFilter.newBuilder().tagIs(DebuggerTags.AlwaysHalt.class).build();
-        this.alwaysHaltBreakpoint = new Breakpoint(BreakpointLocation.ANY, filter, false);
+        this.alwaysHaltBreakpoint = new Breakpoint(BreakpointLocation.ANY, filter, false, SteppingLocation.BEFORE_STATEMENT);
         this.alwaysHaltBreakpoint.setEnabled(true);
         this.alwaysHaltBreakpoint.install(this);
         if (Debugger.TRACE) {
