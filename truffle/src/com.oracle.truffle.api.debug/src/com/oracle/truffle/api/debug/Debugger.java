@@ -33,6 +33,7 @@ import java.util.Set;
 
 import com.oracle.truffle.api.CallTarget;
 import com.oracle.truffle.api.TruffleLanguage;
+import com.oracle.truffle.api.debug.DebuggerSession.SteppingLocation;
 import com.oracle.truffle.api.debug.impl.DebuggerInstrument;
 import com.oracle.truffle.api.frame.MaterializedFrame;
 import com.oracle.truffle.api.impl.Accessor;
@@ -94,7 +95,7 @@ public final class Debugger {
         this.env = env;
         this.msgNodes = new ObjectStructures.MessageNodes();
         SourceSectionFilter filter = SourceSectionFilter.newBuilder().tagIs(DebuggerTags.AlwaysHalt.class).build();
-        this.alwaysHaltBreakpoint = new Breakpoint(BreakpointLocation.ANY, filter, false);
+        this.alwaysHaltBreakpoint = new Breakpoint(BreakpointLocation.ANY, filter, false, SteppingLocation.BEFORE_STATEMENT);
         this.alwaysHaltBreakpoint.setEnabled(true);
     }
 

@@ -154,7 +154,8 @@ public final class DebuggerSession implements Closeable {
         AFTER_CALL,
         BEFORE_ROOT_NODE,
         AFTER_ROOT_NODE,
-        BEFORE_STATEMENT
+        BEFORE_STATEMENT,
+        AFTER_STATEMENT
     }
 
     private final Debugger debugger;
