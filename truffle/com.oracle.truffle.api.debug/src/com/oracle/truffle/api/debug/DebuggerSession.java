@@ -741,7 +741,7 @@ public final class DebuggerSession implements Closeable {
 
     private List<DebuggerNode> collectDebuggerNodes(DebuggerNode source) {
         List<DebuggerNode> nodes = new ArrayList<>();
-        if (source.getSteppingLocation() == SteppingLocation.BEFORE_STATEMENT) {
+        if (source.getSteppingLocation() == SteppingLocation.BEFORE_STATEMENT || source.getSteppingLocation() == SteppingLocation.AFTER_STATEMENT) {
             EventContext context = source.getContext();
 
             if (stepping.get()) {
