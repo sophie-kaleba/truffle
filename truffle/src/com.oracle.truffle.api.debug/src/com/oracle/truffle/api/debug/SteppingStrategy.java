@@ -486,7 +486,7 @@ abstract class SteppingStrategy {
                 return false;
             }
             assert firstRootNode != null : "Need to have seen a BEFORE_ROOT_NODE before";
-            return firstRootNode == context.getInstrumentedNode();
+            return firstRootNode.getSourceSection() == context.getInstrumentedNode().getSourceSection();
         }
 
         @Override
