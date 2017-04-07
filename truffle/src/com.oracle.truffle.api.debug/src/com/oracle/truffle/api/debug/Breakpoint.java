@@ -678,7 +678,7 @@ public final class Breakpoint {
             return breakpoint;
         }
 
-        private SourceSectionFilter buildFilter(Class<?> tag) {
+        private SourceSectionFilter buildFilter(Class<?> filterTag) {
             SourceSectionFilter.Builder f = SourceSectionFilter.newBuilder();
             if (key instanceof URI) {
                 final URI sourceUri = (URI) key;
@@ -708,7 +708,7 @@ public final class Breakpoint {
             if (sourceSection != null) {
                 f.sourceSectionEquals(sourceSection);
             }
-            f.tagIs(tag);
+            f.tagIs(filterTag);
             return f.build();
         }
     }
