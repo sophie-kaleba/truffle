@@ -40,6 +40,7 @@ import com.oracle.truffle.api.frame.MaterializedFrame;
 import com.oracle.truffle.api.instrumentation.EventContext;
 import com.oracle.truffle.api.instrumentation.Instrumenter;
 import com.oracle.truffle.api.instrumentation.StandardTags.StatementTag;
+import com.oracle.truffle.api.nodes.Node;
 import com.oracle.truffle.api.nodes.RootNode;
 import com.oracle.truffle.api.source.SourceSection;
 
@@ -193,6 +194,13 @@ public final class SuspendedEvent {
 
     SteppingLocation getLocation() {
         return location;
+    }
+
+    /**
+     * SM: Reintroduce getNode(). Removed from Truffle 0.25
+     */
+    public Node getNode() {
+        return context.getInstrumentedNode();
     }
 
     /**
