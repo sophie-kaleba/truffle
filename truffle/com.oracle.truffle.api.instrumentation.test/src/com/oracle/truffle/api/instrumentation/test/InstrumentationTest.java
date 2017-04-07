@@ -34,7 +34,6 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.io.Reader;
 import java.nio.CharBuffer;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -842,6 +841,7 @@ public class InstrumentationTest extends AbstractInstrumentationTest {
     /*
      * Test that parsing and executing foreign languages with context work.
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testTestFindParentEventNode1() throws IOException {
         InstrumentationTest.findParentNodes = new ArrayList<>();
