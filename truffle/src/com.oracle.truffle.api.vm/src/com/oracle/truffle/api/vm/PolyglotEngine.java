@@ -220,7 +220,6 @@ public class PolyglotEngine {
      */
     static final PolyglotEngineProfile GLOBAL_PROFILE = new PolyglotEngineProfile(null);
     static final Object UNSET_CONTEXT = new Object();
-    private final Thread initThread;
     private final PolyglotCache cachedTargets;
     private final Map<LanguageShared, Language> sharedToLanguage;
     private final Map<String, Language> mimeTypeToLanguage;
@@ -256,7 +255,6 @@ public class PolyglotEngine {
     PolyglotEngine() {
         assertNoCompilation();
         ensureInitialized();
-        this.initThread = null;
         this.runtime = null;
         this.cachedTargets = null;
         this.languageArray = null;
@@ -275,8 +273,6 @@ public class PolyglotEngine {
      */
     PolyglotEngine(PolyglotRuntime runtime, Executor executor, InputStream in, DispatchOutputStream out, DispatchOutputStream err, Map<String, Object> globals, List<Object[]> config) {
         assertNoCompilation();
-
-        this.initThread = Thread.currentThread();
         this.runtime = runtime;
         this.languageArray = new Language[runtime.getLanguages().size()];
 
@@ -891,9 +887,6 @@ public class PolyglotEngine {
     }
 
     private boolean checkThread() {
-        if (initThread != Thread.currentThread()) {
-            throw new IllegalStateException("PolyglotEngine created on " + initThread.getName() + " but used on " + Thread.currentThread().getName());
-        }
         if (disposed) {
             throw new IllegalStateException("Engine has already been disposed");
         }
