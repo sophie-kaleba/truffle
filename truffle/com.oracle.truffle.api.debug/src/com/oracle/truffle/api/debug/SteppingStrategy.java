@@ -95,6 +95,10 @@ abstract class SteppingStrategy {
         return new StepAfterNextRootNode();
     }
 
+    public static SteppingStrategy createComposed(SteppingStrategy[] strategies) {
+        return new ComposedStrategy(strategies);
+    }
+
     // TODO (mlvdv) wish there were fast-path access to stack depth
     // TODO (chumer) wish so too
     @TruffleBoundary
@@ -398,5 +402,77 @@ abstract class SteppingStrategy {
         public String toString() {
             return "STEP_AFTER_NEXT_ROOTNODE";
         }
+    }
+
+    private static final class ComposedStrategy extends SteppingStrategy {
+
+        private final SteppingStrategy[] strategies;
+        private int current;
+
+        ComposedStrategy(SteppingStrategy[] strategies) {
+            this.strategies = strategies;
+        }
+
+        @Override
+        void initialize() {
+            assert current == 0;
+            strategies[0].initialize();
+        }
+
+        @Override
+        boolean step(DebuggerSession steppingSession, EventContext context, SteppingLocation location) {
+            boolean hit = strategies[current].step(steppingSession, context, location);
+            if (hit) {
+                if (current == strategies.length - 1) {
+                    return true;
+                } else {
+                    current += 1;
+                    strategies[current].initialize();
+                }
+            }
+
+            return false;
+        }
+
+        @Override
+        public void consume() {
+            SteppingStrategy last = strategies[strategies.length - 1];
+            assert current == strategies.length - 1;
+            last.consume();
+        }
+
+        @Override
+        public boolean isConsumed() {
+            SteppingStrategy last = strategies[strategies.length - 1];
+            assert current == strategies.length - 1;
+            return last.isConsumed();
+        }
+
+        @Override
+        public boolean isDone() {
+            if (current == strategies.length - 1) {
+                return strategies[current].isDone();
+            }
+            return false;
+        }
+
+        @Override
+        public boolean isKill() {
+            if (current == strategies.length - 1) {
+                return strategies[current].isKill();
+            }
+            return false;
+        }
+
+        @Override
+        public String toString() {
+            String all = "";
+            for (SteppingStrategy s : strategies) {
+                all += s + ", ";
+            }
+
+            return "COMPOSED(" + all + ")";
+        }
+
     }
 }

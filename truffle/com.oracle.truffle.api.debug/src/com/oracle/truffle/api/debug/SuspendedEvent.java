@@ -104,6 +104,8 @@ import com.oracle.truffle.api.source.SourceSection;
 
 public final class SuspendedEvent {
 
+    private ArrayList<SteppingStrategy> composedStrategies;
+
     private final SourceSection sourceSection;
     private final SteppingLocation location;
 
@@ -347,7 +349,15 @@ public final class SuspendedEvent {
      * @since 0.9
      */
     public void prepareContinue() {
-        setNextStrategy(SteppingStrategy.createContinue());
+        prepareNext(SteppingStrategy.createContinue());
+    }
+
+    private void prepareNext(SteppingStrategy s) {
+        if (composedStrategies != null) {
+            composedStrategies.add(s);
+        } else {
+            setNextStrategy(s);
+        }
     }
 
     /**
@@ -393,7 +403,7 @@ public final class SuspendedEvent {
         if (stepCount <= 0) {
             throw new IllegalArgumentException("stepCount must be > 0");
         }
-        setNextStrategy(SteppingStrategy.createStepInto(stepCount));
+        prepareNext(SteppingStrategy.createStepInto(stepCount));
     }
 
     /**
@@ -424,7 +434,7 @@ public final class SuspendedEvent {
      * @since 0.9
      */
     public void prepareStepOut() {
-        setNextStrategy(SteppingStrategy.createStepOut());
+        prepareNext(SteppingStrategy.createStepOut());
     }
 
     /**
@@ -470,7 +480,7 @@ public final class SuspendedEvent {
         if (stepCount <= 0) {
             throw new IllegalArgumentException("stepCount must be > 0");
         }
-        setNextStrategy(SteppingStrategy.createStepOver(stepCount));
+        prepareNext(SteppingStrategy.createStepOver(stepCount));
     }
 
     /**
@@ -485,7 +495,17 @@ public final class SuspendedEvent {
      * @since 0.12
      */
     public void prepareKill() {
-        setNextStrategy(SteppingStrategy.createKill());
+        prepareNext(SteppingStrategy.createKill());
+    }
+
+    public void startComposedStepping() {
+        composedStrategies = new ArrayList<>();
+    }
+
+    public void prepareComposedStepping() {
+        SteppingStrategy[] strategies = composedStrategies.toArray(new SteppingStrategy[0]);
+        setNextStrategy(SteppingStrategy.createComposed(strategies));
+        composedStrategies = null;
     }
 
     /**
