@@ -24,6 +24,8 @@
  */
 package com.oracle.truffle.api.debug;
 
+import java.util.Set;
+
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.Truffle;
 import com.oracle.truffle.api.debug.DebuggerSession.SteppingLocation;
@@ -87,12 +89,12 @@ abstract class SteppingStrategy {
         return new StepOver(stepCount);
     }
 
-    public static SteppingStrategy createStepUntilNextRootNode() {
-        return new StepUntilNextRootNode();
+    public static SteppingStrategy createStepUntilNextRootNode(Set<Thread> steppingThreads) {
+        return new StepUntilNextRootNode(steppingThreads);
     }
 
-    public static SteppingStrategy createStepAfterNextRootNode() {
-        return new StepAfterNextRootNode();
+    public static SteppingStrategy createStepAfterNextRootNode(Set<Thread> steppingThreads) {
+        return new StepAfterNextRootNode(steppingThreads);
     }
 
     public static SteppingStrategy createComposed(SteppingStrategy[] strategies) {
@@ -362,8 +364,20 @@ abstract class SteppingStrategy {
     }
 
     private static final class StepUntilNextRootNode extends SteppingStrategy {
+        private final Set<Thread> steppingThreads;
+
+        StepUntilNextRootNode(Set<Thread> steppingThreads) {
+            this.steppingThreads = steppingThreads;
+        }
+
         @Override
         void initialize() {
+        }
+
+        @Override
+        public void consume() {
+            super.consume();
+            steppingThreads.remove(Thread.currentThread());
         }
 
         @Override
@@ -381,8 +395,20 @@ abstract class SteppingStrategy {
 
         private Node firstRootNode;
 
+        private final Set<Thread> steppingThreads;
+
+        StepAfterNextRootNode(Set<Thread> steppingThreads) {
+            this.steppingThreads = steppingThreads;
+        }
+
         @Override
         void initialize() {
+        }
+
+        @Override
+        public void consume() {
+            super.consume();
+            steppingThreads.remove(Thread.currentThread());
         }
 
         @Override

@@ -178,17 +178,18 @@ public final class DebuggerSession implements Closeable {
     private final StableBoolean breakpointsActive = new StableBoolean(true);
 
     /**
-     * Denotes the current thread on which threading is activated.
+     * Denotes the threads on which some stepping operation was requested.
      *
      * Currently only used for the stepping to next root node.
      */
-    private volatile Thread steppingThread;
+    private final Set<Thread> steppingThreads;
 
     private final int sessionId;
 
     private volatile boolean closed;
 
     DebuggerSession(Debugger debugger, SuspendedCallback callback) {
+        steppingThreads = Collections.synchronizedSet(new HashSet<>());
         this.sessionId = SESSIONS.incrementAndGet();
         this.debugger = debugger;
         this.callback = callback;
@@ -327,9 +328,10 @@ public final class DebuggerSession implements Closeable {
      */
     public void prepareSteppingUntilNextRootNode() {
         Thread current = Thread.currentThread();
-        steppingThread = current;
+        assert !steppingThreads.contains(current);
+        steppingThreads.add(current);
         // TODO: not sure about update stepping yet true? false?
-        setSteppingStrategy(current, SteppingStrategy.createStepUntilNextRootNode(), false);
+        setSteppingStrategy(current, SteppingStrategy.createStepUntilNextRootNode(steppingThreads), false);
     }
 
     /**
@@ -338,9 +340,10 @@ public final class DebuggerSession implements Closeable {
      */
     public void prepareSteppingAfterNextRootNode() {
         Thread current = Thread.currentThread();
-        steppingThread = current;
+        assert !steppingThreads.contains(current);
+        steppingThreads.add(current);
         // TODO: not sure about update stepping yet true? false?
-        setSteppingStrategy(current, SteppingStrategy.createStepAfterNextRootNode(), false);
+        setSteppingStrategy(current, SteppingStrategy.createStepAfterNextRootNode(steppingThreads), false);
     }
 
     private synchronized void setSteppingStrategy(Thread thread, SteppingStrategy strategy, boolean updateStepping) {
@@ -729,14 +732,14 @@ public final class DebuggerSession implements Closeable {
                 }
             } else if (source.getSteppingLocation() == SteppingLocation.BEFORE_ROOT_NODE) {
                 // Stefan: I assume there is also only one binding for a before rootnode event
-                if (steppingThread != null) {
+                if (steppingThreads.contains(Thread.currentThread())) {
                     assert source.getContext().lookupExecutionEventNode(beforeRootNodeBinding) == source;
                     nodes.add(source);
                 }
             } else {
                 assert source.getSteppingLocation() == SteppingLocation.AFTER_ROOT_NODE;
                 // Stefan: I assume there is also only one binding for a after rootnode event
-                if (steppingThread != null) {
+                if (steppingThreads.contains(Thread.currentThread())) {
                     assert source.getContext().lookupExecutionEventNode(afterRootNodeBinding) == source;
                     nodes.add(source);
                 }
@@ -836,21 +839,21 @@ public final class DebuggerSession implements Closeable {
 
         @Override
         protected void onEnter(VirtualFrame frame) {
-            if (steppingLocation == SteppingLocation.BEFORE_ROOT_NODE && steppingThread == Thread.currentThread()) {
+            if (steppingLocation == SteppingLocation.BEFORE_ROOT_NODE && steppingThreads.contains(Thread.currentThread())) {
                 notifyCallback(this, frame.materialize(), null, null);
             }
         }
 
         @Override
         protected void onReturnValue(VirtualFrame frame, Object result) {
-            if (steppingLocation == SteppingLocation.AFTER_ROOT_NODE && steppingThread == Thread.currentThread()) {
+            if (steppingLocation == SteppingLocation.AFTER_ROOT_NODE && steppingThreads.contains(Thread.currentThread())) {
                 notifyCallback(this, frame.materialize(), result, null);
             }
         }
 
         @Override
         protected void onReturnExceptional(VirtualFrame frame, Throwable exception) {
-            if (steppingLocation == SteppingLocation.AFTER_ROOT_NODE && steppingThread == Thread.currentThread()) {
+            if (steppingLocation == SteppingLocation.AFTER_ROOT_NODE && steppingThreads.contains(Thread.currentThread())) {
                 notifyCallback(this, frame.materialize(), exception, null);
             }
         }
