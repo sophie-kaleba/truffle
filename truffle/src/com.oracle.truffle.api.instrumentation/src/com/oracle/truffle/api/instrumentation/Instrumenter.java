@@ -220,5 +220,13 @@ public abstract class Instrumenter {
      */
     public abstract Set<Class<?>> queryTags(Node node);
 
+    /**
+     * Checks whether a node is tagged.
+     *
+     * @param node the node to check
+     * @param tag the tag to be checked with
+     * @return true if node is tagged
+     * @since smarr/debugger
+     */
     public abstract boolean isTaggedWith(Node node, Class<?> tag);
 }
