@@ -32,13 +32,15 @@ import org.junit.Test;
 import com.oracle.truffle.api.debug.Breakpoint;
 import com.oracle.truffle.api.debug.DebuggerSession;
 import com.oracle.truffle.api.debug.SuspendedEvent;
+import com.oracle.truffle.api.debug.DebuggerSession.SteppingLocation;
+
 import org.graalvm.polyglot.Source;
 
 public class DoubleHaltTest extends AbstractDebugTest {
 
     @Test
     public void testBreakpointStepping() throws Throwable {
-        Source testSource = testSource("ROOT(\n" +
+        String source = "ROOT(\n" +
                         "  STATEMENT,\n" +
                         "  STATEMENT,\n" +
                         "  STATEMENT,\n" +
@@ -47,7 +49,8 @@ public class DoubleHaltTest extends AbstractDebugTest {
                         "  STATEMENT,\n" +
                         "  STATEMENT,\n" +
                         "  STATEMENT\n" +
-                        ")\n");
+                        ")\n";
+        Source testSource = testSource(source);
 
         try (DebuggerSession session = startSession()) {
             Breakpoint breakpoint2 = session.install(Breakpoint.newBuilder(getSourceImpl(testSource)).lineIs(2).build());
@@ -57,6 +60,12 @@ public class DoubleHaltTest extends AbstractDebugTest {
 
             session.suspendNextExecution();
             startEval(testSource);
+
+            expectSuspended((SuspendedEvent event) -> {
+                SuspendedEvent e = checkState(event, 1, false, source);
+                assertEquals(SteppingLocation.BEFORE_ROOT_NODE, event.getLocation());
+                assertEquals(0, e.getBreakpoints().size());
+            });
 
             expectSuspended((SuspendedEvent event) -> {
                 checkState(event, 2, true, "STATEMENT");
@@ -97,18 +106,25 @@ public class DoubleHaltTest extends AbstractDebugTest {
 
     @Test
     public void testCallLoopStepInto() throws Throwable {
-        Source testSource = testSource("ROOT(\n" +
+        String source = "ROOT(\n" +
                         "  DEFINE(foo,\n" +
                         "    LOOP(3,\n" +
                         "      STATEMENT)\n" +
                         "  ),\n" +
                         "  CALL(foo)\n" +
-                        ")\n");
+                        ")\n";
+        Source testSource = testSource(source);
 
         try (DebuggerSession session = startSession()) {
             Breakpoint breakpoint4 = session.install(Breakpoint.newBuilder(getSourceImpl(testSource)).lineIs(4).build());
             session.suspendNextExecution();
             startEval(testSource);
+
+            expectSuspended((SuspendedEvent event) -> {
+                SuspendedEvent e = checkState(event, 1, false, source);
+                assertEquals(SteppingLocation.BEFORE_ROOT_NODE, event.getLocation());
+                assertEquals(0, e.getBreakpoints().size());
+            });
 
             for (int i = 0; i < 3; i++) {
                 final int modI = i % 3;
