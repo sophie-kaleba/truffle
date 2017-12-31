@@ -381,10 +381,16 @@ public final class DebugStackFrame implements Iterable<DebugValue> {
         event.verifyValidState(allowDifferentThread);
     }
 
+    /**
+     * @since smarr/debugger
+     */
     public MaterializedFrame getFrame() {
         return findTruffleFrame();
     }
 
+    /**
+     * @since smarr/debugger
+     */
     public RootNode getRootNode() {
         return findCurrentRoot();
     }

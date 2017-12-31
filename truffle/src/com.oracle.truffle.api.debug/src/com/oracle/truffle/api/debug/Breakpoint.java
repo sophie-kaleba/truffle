@@ -109,8 +109,11 @@ public class Breakpoint {
      * A simple way to have conditional breakpoints, without language-level expressions.
      *
      * This is meant to implement complex breakpoints for the debugger.
+     *
+     * @since smarr/debugger
      */
     public interface SimpleCondition {
+        /** @since smarr/debugger */
         boolean evaluate();
     }
 
@@ -268,6 +271,7 @@ public class Breakpoint {
         }
     }
 
+    /** @since smarr/debugger */
     public synchronized void setCondition(SimpleCondition condition) {
         this.simpleCondition = condition;
         this.condition = null;
@@ -756,6 +760,7 @@ public class Breakpoint {
             return this;
         }
 
+        /** @since smarr/debugger */
         public Builder tag(Class<?> filterTag) {
             if (this.tag != StatementTag.class) {
                 throw new IllegalStateException("Tag had already been set to " + this.tag.getSimpleName() + " before.");
@@ -764,6 +769,7 @@ public class Breakpoint {
             return this;
         }
 
+        /** @since smarr/debugger */
         public Builder steppingLocation(SteppingLocation location) {
             if (this.steppingLocation != null) {
                 throw new IllegalStateException("Stepping location was already set");

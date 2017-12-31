@@ -70,6 +70,8 @@ import com.oracle.truffle.api.source.SourceSection;
 /**
  * Central coordinator class for the Truffle instrumentation framework. Allocated once per
  * {@linkplain com.oracle.truffle.api.vm.PolyglotEngine engine}.
+ *
+ * @since public in smarr/debugger
  */
 public final class InstrumentationHandler {
 
@@ -124,10 +126,16 @@ public final class InstrumentationHandler {
         globalHandler = this;
     }
 
+    /**
+     * @since smarr/debugger
+     */
     public static void insertInstrumentationWrapper(Node instrumentableNode) {
         insertInstrumentationWrapper(instrumentableNode, instrumentableNode.getSourceSection());
     }
 
+    /**
+     * @since smarr/debugger
+     */
     public static void insertInstrumentationWrapper(Node instrumentableNode, SourceSection sourceSection) {
         assert globalHandler != null : "InstrumentationHandler not yet initialized";
 
@@ -510,6 +518,9 @@ public final class InstrumentationHandler {
         return root;
     }
 
+    /**
+     * @since smarr/debugger
+     */
     public void onNodeInserted(RootNode rootNode, Node tree) {
         if (!sourceSectionBindings.isEmpty()) {
             visitRoot(rootNode, tree, new NotifyLoadedListenerVisitor(sourceSectionBindings), true);
