@@ -165,8 +165,11 @@ public class Breakpoint {
      * A simple way to have conditional breakpoints, without language-level expressions.
      *
      * This is meant to implement complex breakpoints for the debugger.
+     *
+     * @since smarr/debugger
      */
     public interface SimpleCondition {
+        /** @since smarr/debugger */
         boolean evaluate();
     }
 
@@ -350,6 +353,7 @@ public class Breakpoint {
         }
     }
 
+    /** @since smarr/debugger */
     public synchronized void setCondition(SimpleCondition condition) {
         boolean existsChanged = conditionIsNotSet() != (condition == null);
         this.simpleCondition = condition;
