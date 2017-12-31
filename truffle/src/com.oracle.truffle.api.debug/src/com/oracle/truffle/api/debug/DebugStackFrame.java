@@ -335,10 +335,16 @@ public final class DebugStackFrame {
         event.verifyValidState(allowDifferentThread);
     }
 
+    /**
+     * @since smarr/debugger
+     */
     public MaterializedFrame getFrame() {
         return findTruffleFrame();
     }
 
+    /**
+     * @since smarr/debugger
+     */
     public RootNode getRootNode() {
         return findCurrentRoot();
     }
