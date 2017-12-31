@@ -36,6 +36,8 @@ import com.oracle.truffle.api.debug.Debugger;
 import com.oracle.truffle.api.debug.DebuggerSession;
 import com.oracle.truffle.api.debug.SuspendedCallback;
 import com.oracle.truffle.api.debug.SuspendedEvent;
+import com.oracle.truffle.api.debug.DebuggerSession.SteppingLocation;
+
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Source;
 
@@ -51,10 +53,11 @@ public class NestedContextTest extends AbstractDebugTest {
         if (depth == 0) {
             return;
         }
-        Source testSource = testSource("ROOT(\n" +
+        String source = "ROOT(\n" +
                         "  STATEMENT,\n" +
                         "  STATEMENT\n" +
-                        ")\n");
+                        ")\n";
+        Source testSource = testSource(source);
         pushContext();
         try (DebuggerSession session = startSession()) {
             Breakpoint breakpoint3 = session.install(Breakpoint.newBuilder(getSourceImpl(testSource)).lineIs(3).build());
@@ -63,10 +66,9 @@ public class NestedContextTest extends AbstractDebugTest {
             startEval(testSource);
 
             expectSuspended((SuspendedEvent event) -> {
-                checkState(event, 2, true, "STATEMENT");
-                assertEquals(0, event.getBreakpoints().size());
-                testNestedStepping(depth - 1);
-                event.prepareStepInto(1);
+                SuspendedEvent e = checkState(event, 1, false, source);
+                assertEquals(SteppingLocation.BEFORE_ROOT_NODE, event.getLocation());
+                assertEquals(0, e.getBreakpoints().size());
             });
 
             expectSuspended((SuspendedEvent event) -> {
