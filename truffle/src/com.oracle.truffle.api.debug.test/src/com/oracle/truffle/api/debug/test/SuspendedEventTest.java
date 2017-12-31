@@ -60,6 +60,16 @@ public class SuspendedEventTest extends AbstractDebugTest {
             startEval(source);
 
             expectSuspended((SuspendedEvent event) -> {
+                checkState(event, 1, false, "ROOT(\n" +
+                                "  DEFINE(bar, VARIABLE(bar0, 41), VARIABLE(bar1, 40), STATEMENT),\n" +
+                                "  DEFINE(foo, ROOT(VARIABLE(foo0, 42), \n" +
+                                "                   STATEMENT(CALL(bar)))),\n" +
+                                "  STATEMENT(VARIABLE(root0, 43)),\n" +
+                                "  STATEMENT(CALL(foo))\n" +
+                                ")\n").prepareStepOver(1);
+            });
+
+            expectSuspended((SuspendedEvent event) -> {
                 checkState(event, 5, true, "STATEMENT(VARIABLE(root0, 43))").prepareStepOver(1);
                 Iterator<DebugStackFrame> frameIterator = event.getStackFrames().iterator();
                 checkStack(frameIterator.next());
@@ -105,6 +115,14 @@ public class SuspendedEventTest extends AbstractDebugTest {
         try (DebuggerSession session = startSession()) {
             session.suspendNextExecution();
             startEval(source);
+
+            expectSuspended((SuspendedEvent event) -> {
+                checkState(event, 1, false, "ROOT(\n" +
+                                "  DEFINE(bar, STATEMENT(CONSTANT(42))), \n" +
+                                "  DEFINE(foo, CALL(bar)), \n" +
+                                "  STATEMENT(CALL(foo))\n" +
+                                ")\n").prepareStepInto(1);
+            });
 
             expectSuspended((SuspendedEvent event) -> {
                 checkState(event, 4, true, "STATEMENT(CALL(foo))").prepareStepInto(1);
