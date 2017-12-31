@@ -161,7 +161,10 @@ public final class DebuggerSession implements Closeable {
 
     private static final AtomicInteger SESSIONS = new AtomicInteger(0);
 
-    enum SteppingLocation {
+    /**
+     * @since smarr/debugger
+     */
+    public enum SteppingLocation {
         AFTER_CALL,
         AFTER_STATEMENT,
         BEFORE_ROOT_NODE,
@@ -400,6 +403,8 @@ public final class DebuggerSession implements Closeable {
 
     /**
      * Run to the next root node. Suspend execution before executing the node.
+     *
+     * @since smarr/debugger
      */
     public void prepareSteppingUntilNextRootNode() {
         Thread current = Thread.currentThread();
@@ -410,6 +415,8 @@ public final class DebuggerSession implements Closeable {
     /**
      * Run to the next root node, remember it, and execute all subexpressions. Once it returns and
      * arrives on the return edge, suspend execution.
+     *
+     * @since smarr/debugger
      */
     public void prepareSteppingAfterNextRootNode() {
         Thread current = Thread.currentThread();
