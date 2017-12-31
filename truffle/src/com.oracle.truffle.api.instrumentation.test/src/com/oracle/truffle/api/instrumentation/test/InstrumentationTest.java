@@ -1082,13 +1082,12 @@ public class InstrumentationTest extends AbstractInstrumentationTest {
     /*
      * Test that parsing and executing foreign languages with context work.
      */
-    @SuppressWarnings("deprecation")
     @Test
     public void testTestFindParentEventNode1() throws IOException {
         InstrumentationTest.findParentNodes = new ArrayList<>();
         List<FindParentEventNode> nodes = InstrumentationTest.findParentNodes;
 
-        engine.getInstruments().get("testTestFindParentEventNode1");
+        assureEnabled(engine.getInstruments().get("testTestFindParentEventNode1"));
         run("STATEMENT(EXPRESSION,EXPRESSION(STATEMENT))");
 
         // assert no assertions during execution
@@ -1144,7 +1143,7 @@ public class InstrumentationTest extends AbstractInstrumentationTest {
 
     }
 
-    @Registration(id = "testTestFindParentEventNode1")
+    @Registration(id = "testTestFindParentEventNode1", services = Object.class)
     public static class TestFindParentEventNode1 extends TruffleInstrument {
 
         static int parentNodesFound = 0;
