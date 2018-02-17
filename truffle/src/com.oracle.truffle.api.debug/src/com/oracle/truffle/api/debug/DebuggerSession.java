@@ -950,7 +950,7 @@ public final class DebuggerSession implements Closeable {
             }
         } else {
             if (source.getSteppingLocation() == SteppingLocation.AFTER_CALL ||
-                source.getSteppingLocation() == SteppingLocation.AFTER_STATEMENT) {
+                            source.getSteppingLocation() == SteppingLocation.AFTER_STATEMENT) {
                 // there is only one binding that can lead to a after event
                 if (stepping.get()) {
                     EventBinding<? extends ExecutionEventNodeFactory> localCallBinding = callBinding;
