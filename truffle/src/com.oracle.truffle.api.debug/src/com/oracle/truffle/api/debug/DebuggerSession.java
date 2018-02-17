@@ -842,17 +842,6 @@ public final class DebuggerSession implements Closeable {
         doSuspend(context, SteppingLocation.AFTER_CALL, caller.frame, null, Collections.emptyList(), Collections.emptyMap());
     }
 
-    /**
-     * @since smarr/debugger
-     */
-    public void doSuspend(MaterializedFrame frame, SteppingLocation steppingLocation) {
-        doSuspend(null, steppingLocation, frame, null, null, null);
-    }
-
-    private void doSuspend(DebuggerNode source, MaterializedFrame frame, Object returnValue, List<Breakpoint> breaks, Map<Breakpoint, Throwable> conditionFailures) {
-        doSuspend(SuspendedContext.create(source.getContext()), source.getSteppingLocation(), frame, returnValue, breaks, conditionFailures);
-    }
-
     private void doSuspend(SuspendedContext context, SteppingLocation steppingLocation, MaterializedFrame frame, Object returnValue, List<Breakpoint> breaks,
                     Map<Breakpoint, Throwable> conditionFailures) {
         CompilerAsserts.neverPartOfCompilation();
