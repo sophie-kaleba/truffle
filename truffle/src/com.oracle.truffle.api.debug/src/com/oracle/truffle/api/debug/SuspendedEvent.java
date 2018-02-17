@@ -201,7 +201,10 @@ public final class SuspendedEvent {
         return context;
     }
 
-    SteppingLocation getLocation() {
+    /**
+     * @since smarr/debugger
+     */
+    public SteppingLocation getLocation() {
         return location;
     }
 
