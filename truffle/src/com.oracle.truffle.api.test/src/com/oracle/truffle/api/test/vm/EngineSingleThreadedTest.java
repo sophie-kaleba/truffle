@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.StringReader;
 
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.oracle.truffle.api.source.Source;
@@ -69,16 +70,19 @@ public class EngineSingleThreadedTest {
     }
 
     @Test(expected = IllegalStateException.class)
+    @Ignore("Removed relevant checks")
     public void evalURI() throws Exception {
         tvm.eval(Source.newBuilder(new File(".").toURI().toURL()).name("wrong.test").build());
     }
 
     @Test(expected = IllegalStateException.class)
+    @Ignore("Removed relevant checks")
     public void evalString() {
         tvm.eval(Source.newBuilder("1 + 1").name("wrong.test").mimeType("text/javascript").build());
     }
 
     @Test(expected = IllegalStateException.class)
+    @Ignore("Removed relevant checks")
     public void evalReader() throws IOException {
         try (StringReader sr = new StringReader("1 + 1")) {
             tvm.eval(Source.newBuilder(sr).name("wrong.test").mimeType("text/javascript").build());
@@ -86,16 +90,19 @@ public class EngineSingleThreadedTest {
     }
 
     @Test(expected = IllegalStateException.class)
+    @Ignore("Removed relevant checks")
     public void evalSource() {
         tvm.eval(Source.newBuilder("").name("Empty").mimeType("text/plain").build());
     }
 
     @Test(expected = IllegalStateException.class)
+    @Ignore("Removed relevant checks")
     public void findGlobalSymbol() {
         tvm.findGlobalSymbol("doesNotExists");
     }
 
     @Test(expected = IllegalStateException.class)
+    @Ignore("Removed relevant checks")
     public void dispose() {
         tvm.dispose();
     }
