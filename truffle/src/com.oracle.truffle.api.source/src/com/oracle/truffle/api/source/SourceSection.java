@@ -245,8 +245,10 @@ public final class SourceSection {
         StringBuilder b = new StringBuilder();
         b.append("SourceSection(source=").append(getSource().getName());
         if (isAvailable()) {
-            b.append(", index=").append(getCharIndex());
+            b.append(", line=").append(getStartLine());
+            b.append(", column=").append(getStartColumn());
             b.append(", length=").append(getCharLength());
+            b.append(", index=").append(getCharIndex());
             if (isValid()) {
                 b.append(", characters=").append(getCharacters().toString().replaceAll("\\n", "\\\\n"));
             } else {
