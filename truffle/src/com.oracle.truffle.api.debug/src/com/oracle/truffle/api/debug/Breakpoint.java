@@ -49,6 +49,7 @@ import com.oracle.truffle.api.instrumentation.ExecutionEventNode;
 import com.oracle.truffle.api.instrumentation.ExecutionEventNodeFactory;
 import com.oracle.truffle.api.instrumentation.SourceFilter;
 import com.oracle.truffle.api.instrumentation.SourceSectionFilter;
+import com.oracle.truffle.api.instrumentation.Tag;
 import com.oracle.truffle.api.instrumentation.TruffleInstrument;
 import com.oracle.truffle.api.nodes.ControlFlowException;
 import com.oracle.truffle.api.nodes.DirectCallNode;
@@ -795,6 +796,8 @@ public class Breakpoint {
         private SourceSection sourceSection;
         private SourceElement[] sourceElements;
 
+        private Class<? extends Tag> tag;
+
         private Builder(Object key) {
             Objects.requireNonNull(key);
             this.key = key;
@@ -933,6 +936,19 @@ public class Breakpoint {
         }
 
         /**
+         * Specify the tag a source section needs to provide.
+         *
+         * @since smarr/debugger
+         */
+        public Builder tag(Class<? extends Tag> filterTag) {
+            if (this.tag != null) {
+                throw new IllegalStateException("Tag can only be set once per the builder.");
+            }
+            this.tag = filterTag;
+            return this;
+        }
+
+        /**
          * @return a new breakpoint instance of {@link Kind#SOURCE_LOCATION SOURCE_LOCATION} kind.
          *
          * @since 0.17
@@ -943,9 +959,9 @@ public class Breakpoint {
             }
             BreakpointLocation location;
             if (sourceSection != null) {
-                location = BreakpointLocation.create(key, sourceElements, sourceSection);
+                location = BreakpointLocation.create(key, sourceElements, sourceSection, tag);
             } else {
-                location = BreakpointLocation.create(key, sourceElements, line, column);
+                location = BreakpointLocation.create(key, sourceElements, line, column, tag);
             }
             Breakpoint breakpoint = new Breakpoint(location, anchor, oneShot, null, resolveListener);
             breakpoint.setIgnoreCount(ignoreCount);
