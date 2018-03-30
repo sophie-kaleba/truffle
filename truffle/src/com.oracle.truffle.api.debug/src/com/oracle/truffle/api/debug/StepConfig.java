@@ -30,6 +30,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import com.oracle.truffle.api.instrumentation.EventContext;
+import com.oracle.truffle.api.instrumentation.Tag;
 
 /**
  * Represents a debugger step configuration. A debugger step is defined by it's depth and a set of
@@ -52,14 +53,19 @@ import com.oracle.truffle.api.instrumentation.EventContext;
  */
 public final class StepConfig {
 
-    private static final StepConfig EMPTY = new StepConfig(null, 0);
+    private static final StepConfig EMPTY = new StepConfig(null, 0, null, null);
 
     private final Set<SourceElement> sourceElements;
     private final int stepCount;
 
-    StepConfig(Set<SourceElement> sourceElements, int count) {
+    private final Class<? extends Tag> tag;
+    private final SuspendAnchor tagAnchor;
+
+    StepConfig(Set<SourceElement> sourceElements, int count, Class<? extends Tag> tag, SuspendAnchor tagAnchor) {
         this.sourceElements = sourceElements;
         this.stepCount = count;
+        this.tag = tag;
+        this.tagAnchor = tagAnchor;
     }
 
     /**
@@ -104,7 +110,18 @@ public final class StepConfig {
                 return true;
             }
         }
+        if (tag != null) {
+            return context.hasTag(tag) && this.tagAnchor == anchor;
+        }
         return false;
+    }
+
+    Class<? extends Tag> getTag() {
+        return tag;
+    }
+
+    SuspendAnchor getTagAnchor() {
+        return tagAnchor;
     }
 
     boolean containsSourceElement(DebuggerSession session, SourceElement sourceElement) {
@@ -133,6 +150,9 @@ public final class StepConfig {
 
         private Set<SourceElement> stepElements;
         private int stepCount = -1;
+
+        private Class<? extends Tag> tag;
+        private SuspendAnchor tagAnchor;
 
         private Builder() {
         }
@@ -163,6 +183,23 @@ public final class StepConfig {
         }
 
         /**
+         * Set a tag to filter the applicable source sections.
+         *
+         * @since smarr/debugger
+         */
+        public Builder tag(@SuppressWarnings("hiding") Class<? extends Tag> tag, @SuppressWarnings("hiding") SuspendAnchor tagAnchor) {
+            if (this.tag != null && this.tagAnchor != null) {
+                throw new IllegalStateException("Tag and anchor can only be set once per the builder.");
+            }
+            if (tag == null && tagAnchor == null) {
+                throw new IllegalArgumentException("Tag and anchor cannot be null");
+            }
+            this.tag = tag;
+            this.tagAnchor = tagAnchor;
+            return this;
+        }
+
+        /**
          * Provide the step count. It specifies the number of times the step repeats itself before
          * it suspends the execution. Can only be invoked once per builder.
          *
@@ -189,7 +226,7 @@ public final class StepConfig {
             if (stepCount < 0) {
                 stepCount = 1;
             }
-            return new StepConfig(stepElements, stepCount);
+            return new StepConfig(stepElements, stepCount, tag, tagAnchor);
         }
     }
 }
