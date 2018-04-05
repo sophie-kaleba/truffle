@@ -24,6 +24,10 @@
  */
 package com.oracle.truffle.api.interop;
 
+import java.math.BigInteger;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
+
 import com.oracle.truffle.api.CallTarget;
 import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
@@ -132,7 +136,12 @@ abstract class InteropAccessNode extends Node {
                         clazz == Double.class ||
                         clazz == Character.class ||
                         clazz == Boolean.class ||
-                        clazz == String.class) {
+                        clazz == String.class ||
+                        // SM: I need these for SOMns and don't require good interop a the moment
+                        clazz == BigInteger.class ||
+                        clazz == ReentrantLock.class ||
+                        Condition.class.isAssignableFrom(clazz) ||
+                        clazz == Object[].class) {
             return true;
         } else {
             CompilerDirectives.transferToInterpreter();
