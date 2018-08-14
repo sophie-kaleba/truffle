@@ -174,6 +174,8 @@ public final class DebuggerSession implements Closeable {
     private final boolean hasExpressionElement;
     private final List<Breakpoint> breakpoints = Collections.synchronizedList(new ArrayList<>());
 
+    private final Class<Tag>[] customSourceElements;
+
     private EventBinding<? extends ExecutionEventNodeFactory> callBinding;
     private EventBinding<? extends ExecutionEventNodeFactory> syntaxElementsBinding;
     private EventBinding<? extends ExecutionEventNodeFactory> rootBinding;
@@ -197,10 +199,14 @@ public final class DebuggerSession implements Closeable {
 
     private volatile boolean closed;
 
-    DebuggerSession(Debugger debugger, SuspendedCallback callback, SourceElement... sourceElements) {
+    DebuggerSession(Debugger debugger, SuspendedCallback callback, Class<Tag>[] customSourceElements, SourceElement... sourceElements) {
         this.sessionId = SESSIONS.incrementAndGet();
         this.debugger = debugger;
         this.callback = callback;
+
+        this.customSourceElements = customSourceElements;
+        assert customSourceElements != null : "At least an empty array, for customSourceElements";
+
         switch (sourceElements.length) {
             case 0:
                 this.sourceElements = Collections.emptySet();
@@ -496,10 +502,15 @@ public final class DebuggerSession implements Closeable {
                     return new RootSteppingDepthNode();
                 }
             }, false, RootTag.class);
-            Class<?>[] syntaxTags = new Class<?>[this.sourceElements.size()];
+            int numSourceElements = this.sourceElements.size();
+            Class<?>[] syntaxTags = new Class<?>[numSourceElements + this.customSourceElements.length];
             Iterator<SourceElement> elementsIterator = this.sourceElements.iterator();
-            for (int i = 0; i < syntaxTags.length; i++) {
+            int i = 0;
+            for (; i < numSourceElements; i++) {
                 syntaxTags[i] = elementsIterator.next().getTag();
+            }
+            for (int j = 0; j < this.customSourceElements.length; j++, i++) {
+                syntaxTags[i] = this.customSourceElements[j];
             }
             this.syntaxElementsBinding = createBinding(includeInternalCode, sFilter, new ExecutionEventNodeFactory() {
                 @Override
