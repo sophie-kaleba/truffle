@@ -105,6 +105,11 @@ public final class DefaultCallTarget implements RootCallTarget {
         }
     }
 
+    @Override
+    public int getTargetID() {
+        return -this.hashCode();
+    }
+
     private void initialize() {
         synchronized (this) {
             if (!this.initialized) {

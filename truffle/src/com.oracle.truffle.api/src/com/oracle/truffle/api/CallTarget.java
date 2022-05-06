@@ -60,4 +60,6 @@ public interface CallTarget {
      * @since 0.8 or earlier
      */
     Object call(Object... arguments);
+
+    int getTargetID();
 }
