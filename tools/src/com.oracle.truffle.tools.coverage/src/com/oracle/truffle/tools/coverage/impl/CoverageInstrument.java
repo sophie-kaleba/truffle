@@ -150,7 +150,9 @@ public class CoverageInstrument extends TruffleInstrument {
             boolean file = filterFile.testWildcardExpressions(source.getPath());
             boolean mimeType = filterMimeType.equals("") || filterMimeType.equals(source.getMimeType());
             final boolean languageId = filterLanguage.equals("") || filterMimeType.equals(source.getLanguage());
-            return internal && file && mimeType && languageId;
+            boolean isCore = !(source.getPath() == null);
+            boolean isLLVM = !(source.getLanguage() == "llvm");
+            return internal && file && mimeType && languageId && isCore && isLLVM;
         });
         final WildcardFilter filterRootName = FILTER_ROOT.getValue(options);
         builder.rootNameIs(filterRootName::testWildcardExpressions);
