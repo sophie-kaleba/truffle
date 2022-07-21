@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Supplier;
 
+import com.oracle.truffle.api.source.SourceSection;
 import org.graalvm.compiler.truffle.common.CompilableTruffleAST;
 import org.graalvm.compiler.truffle.common.TruffleCallNode;
 import org.graalvm.compiler.truffle.options.PolyglotCompilerOptions;
@@ -336,6 +337,10 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
 
     public int getTargetID() {
         return this.id;
+    }
+
+    public SourceSection getSourceSection() {
+        return rootNode.getSourceSection();
     }
 
     protected OptimizedCallTarget(OptimizedCallTarget sourceCallTarget, RootNode rootNode) {

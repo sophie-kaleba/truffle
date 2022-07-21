@@ -940,6 +940,11 @@ public class InstrumentationTest extends AbstractInstrumentationTest {
                 }
 
                 @Override
+                public SourceSection getSourceSection() {
+                    return null;
+                }
+
+                @Override
                 public int getTargetID() {
                     return 42;
                 }
