@@ -938,6 +938,16 @@ public class InstrumentationTest extends AbstractInstrumentationTest {
                 public Object call(Object... arguments) {
                     return TestOtherLanguageParseInline.this;
                 }
+
+                @Override
+                public SourceSection getSourceSection() {
+                    return null;
+                }
+
+                @Override
+                public int getTargetID() {
+                    return 42;
+                }
             };
         }
 
