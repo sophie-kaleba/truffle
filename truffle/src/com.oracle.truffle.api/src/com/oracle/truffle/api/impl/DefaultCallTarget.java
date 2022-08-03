@@ -49,6 +49,7 @@ import com.oracle.truffle.api.impl.DefaultTruffleRuntime.DefaultFrameInstance;
 import com.oracle.truffle.api.nodes.EncapsulatingNodeReference;
 import com.oracle.truffle.api.nodes.Node;
 import com.oracle.truffle.api.nodes.RootNode;
+import com.oracle.truffle.api.source.SourceSection;
 
 /**
  * This is an implementation-specific class. Do not use or instantiate it. Instead, use
@@ -105,6 +106,11 @@ public final class DefaultCallTarget implements RootCallTarget {
         }
     }
 
+    @Override
+    public int getTargetID() {
+        return -this.hashCode();
+    }
+
     private void initialize() {
         synchronized (this) {
             if (!this.initialized) {
@@ -112,6 +118,11 @@ public final class DefaultCallTarget implements RootCallTarget {
                 this.initialized = true;
             }
         }
+    }
+
+    @Override
+    public SourceSection getSourceSection() {
+        return rootNode.getSourceSection();
     }
 
     boolean isLoaded() {

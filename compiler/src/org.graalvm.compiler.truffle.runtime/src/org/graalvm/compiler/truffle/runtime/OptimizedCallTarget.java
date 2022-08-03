@@ -352,6 +352,14 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
         id = idCounter.getAndIncrement();
     }
 
+    public int getTargetID() {
+        return this.id;
+    }
+
+    public SourceSection getSourceSection() {
+        return rootNode.getSourceSection();
+    }
+
     final Assumption getNodeRewritingAssumption() {
         Assumption assumption = nodeRewritingAssumption;
         if (assumption == null) {
