@@ -41,6 +41,7 @@
 package com.oracle.truffle.api;
 
 import com.oracle.truffle.api.nodes.RootNode;
+import com.oracle.truffle.api.source.SourceSection;
 
 /**
  * Represents the target of a call. Do not subclass {@link CallTarget} directly but implement
@@ -62,4 +63,6 @@ public interface CallTarget {
     Object call(Object... arguments);
 
     int getTargetID();
+
+    SourceSection getSourceSection();
 }
