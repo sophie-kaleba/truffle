@@ -29,6 +29,13 @@ suite = {
          ]
       },
       {
+        "name" : "regex",
+        "subdir": True,
+        "urls" : [
+          {"url" : "https://curio.ssw.jku.at/nexus/content/repositories/snapshots", "kind" : "binary"},
+         ]
+      },
+      {
         "name" : "java-benchmarks",
         "subdir": True
       }
@@ -1952,11 +1959,13 @@ suite = {
         "GRAAL_ONLY_TEST",
         "truffle:TRUFFLE_SL_TEST",
         "truffle:TRUFFLE_TEST",
+        "regex:TREGEX"
       ],
       "exclude" : [
         "mx:JUNIT",
         "JAVA_ALLOCATION_INSTRUMENTER",
       ],
+      "testDistribution" : True,
       "maven": False,
     },
 
