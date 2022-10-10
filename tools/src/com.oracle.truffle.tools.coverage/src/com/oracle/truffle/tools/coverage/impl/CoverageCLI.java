@@ -82,7 +82,7 @@ final class CoverageCLI {
             loaded += sectionCoverage.length;
             covered += getCoveredCount(sectionCoverage);
         }
-        return percentFormat(100 * (double) covered / loaded);
+        return percentFormat(100 * (double) covered / loaded)+" "+covered+" "+loaded;
     }
 
     private static long getCoveredCount(SectionCoverage[] sectionCoverage) {
@@ -96,7 +96,7 @@ final class CoverageCLI {
                 covered++;
             }
         }
-        return percentFormat(100 * (double) covered / coverage.getRoots().length);
+        return percentFormat(100 * (double) covered / coverage.getRoots().length)+" "+covered+" "+coverage.getRoots().length;
     }
 
     private static String lineCoverage(LineCoverage lineCoverage) {
@@ -163,10 +163,12 @@ final class CoverageCLI {
         printLine();
         for (SourceCoverage sourceCoverage : coverage) {
             final String name = getName(sourceCoverage.getSource());
+            final String stat = statementCoverage(sourceCoverage);
+            final String root = rootCoverage(sourceCoverage);
             final String line = format(format, name,
-                            statementCoverage(sourceCoverage),
+                            stat,
                             lineCoverage(new LineCoverage(sourceCoverage, strictLines)),
-                            rootCoverage(sourceCoverage));
+                            root);
             out.println(line);
         }
         printLine();
