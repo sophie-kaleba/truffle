@@ -601,56 +601,56 @@ public final class ArrayUtils {
         }
     }
 
-    private static int stubIndexOfB1S1(byte[] array, long fromIndex, int maxIndex, int v1) {
+    private static int stubIndexOfB1S1(byte[] array, int fromIndex, int maxIndex, int v1) {
         return runIndexOfS1(array, fromIndex, maxIndex, v1);
     }
 
-    private static int stubIndexOfB2S1(byte[] array, long fromIndex, int maxIndex, int v1, int v2) {
+    private static int stubIndexOfB2S1(byte[] array, int fromIndex, int maxIndex, int v1, int v2) {
         return runIndexOfS1(array, fromIndex, maxIndex, v1, v2);
     }
 
-    private static int stubIndexOfB3S1(byte[] array, long fromIndex, int maxIndex, int v1, int v2, int v3) {
+    private static int stubIndexOfB3S1(byte[] array, int fromIndex, int maxIndex, int v1, int v2, int v3) {
         return runIndexOfS1(array, fromIndex, maxIndex, v1, v2, v3);
     }
 
-    private static int stubIndexOfB4S1(byte[] array, long fromIndex, int maxIndex, int v1, int v2, int v3, int v4) {
+    private static int stubIndexOfB4S1(byte[] array, int fromIndex, int maxIndex, int v1, int v2, int v3, int v4) {
         return runIndexOfS1(array, fromIndex, maxIndex, v1, v2, v3, v4);
     }
 
-    private static int stubIndexOfB1S2(byte[] array, long fromIndex, int maxIndex, int v1) {
+    private static int stubIndexOfB1S2(byte[] array, int fromIndex, int maxIndex, int v1) {
         return runIndexOfS2(array, fromIndex, maxIndex, v1);
     }
 
-    private static int stubIndexOfB2S2(byte[] array, long fromIndex, int maxIndex, int v1, int v2) {
+    private static int stubIndexOfB2S2(byte[] array, int fromIndex, int maxIndex, int v1, int v2) {
         return runIndexOfS2(array, fromIndex, maxIndex, v1, v2);
     }
 
-    private static int stubIndexOfB3S2(byte[] array, long fromIndex, int maxIndex, int v1, int v2, int v3) {
+    private static int stubIndexOfB3S2(byte[] array, int fromIndex, int maxIndex, int v1, int v2, int v3) {
         return runIndexOfS2(array, fromIndex, maxIndex, v1, v2, v3);
     }
 
-    private static int stubIndexOfB4S2(byte[] array, long fromIndex, int maxIndex, int v1, int v2, int v3, int v4) {
+    private static int stubIndexOfB4S2(byte[] array, int fromIndex, int maxIndex, int v1, int v2, int v3, int v4) {
         return runIndexOfS2(array, fromIndex, maxIndex, v1, v2, v3, v4);
     }
 
-    private static int stubIndexOfC1S2(char[] array, long fromIndex, int maxIndex, int v1) {
+    private static int stubIndexOfC1S2(char[] array, int fromIndex, int maxIndex, int v1) {
         return runIndexOfS2(array, fromIndex, maxIndex, v1);
     }
 
-    private static int stubIndexOfC2S2(char[] array, long fromIndex, int maxIndex, int v1, int v2) {
+    private static int stubIndexOfC2S2(char[] array, int fromIndex, int maxIndex, int v1, int v2) {
         return runIndexOfS2(array, fromIndex, maxIndex, v1, v2);
     }
 
-    private static int stubIndexOfC3S2(char[] array, long fromIndex, int maxIndex, int v1, int v2, int v3) {
+    private static int stubIndexOfC3S2(char[] array, int fromIndex, int maxIndex, int v1, int v2, int v3) {
         return runIndexOfS2(array, fromIndex, maxIndex, v1, v2, v3);
     }
 
-    private static int stubIndexOfC4S2(char[] array, long fromIndex, int maxIndex, int v1, int v2, int v3, int v4) {
+    private static int stubIndexOfC4S2(char[] array, int fromIndex, int maxIndex, int v1, int v2, int v3, int v4) {
         return runIndexOfS2(array, fromIndex, maxIndex, v1, v2, v3, v4);
     }
 
-    private static int stubIndexOfWithOrMaskS1(byte[] haystack, long fromIndex, int maxIndex, int needle, int mask) {
-        for (int i = (int) fromIndex; i < maxIndex; i++) {
+    private static int stubIndexOfWithOrMaskS1(byte[] haystack, int fromIndex, int maxIndex, int needle, int mask) {
+        for (int i = fromIndex; i < maxIndex; i++) {
             if ((Byte.toUnsignedInt(haystack[i]) | mask) == needle) {
                 return i;
             }
@@ -658,8 +658,8 @@ public final class ArrayUtils {
         return -1;
     }
 
-    private static int stubIndexOfWithOrMaskS2(byte[] haystack, long fromIndex, int maxIndex, int needle, int mask) {
-        for (int i = (int) fromIndex; i < maxIndex; i++) {
+    private static int stubIndexOfWithOrMaskS2(byte[] haystack, int fromIndex, int maxIndex, int needle, int mask) {
+        for (int i = fromIndex; i < maxIndex; i++) {
             if ((readChar(haystack, i) | mask) == needle) {
                 return i;
             }
@@ -667,8 +667,8 @@ public final class ArrayUtils {
         return -1;
     }
 
-    private static int stubIndexOfWithOrMaskS2(char[] haystack, long fromIndex, int maxIndex, int needle, int mask) {
-        for (int i = (int) fromIndex; i < maxIndex; i++) {
+    private static int stubIndexOfWithOrMaskS2(char[] haystack, int fromIndex, int maxIndex, int needle, int mask) {
+        for (int i = fromIndex; i < maxIndex; i++) {
             if ((haystack[i] | mask) == needle) {
                 return i;
             }
@@ -676,8 +676,8 @@ public final class ArrayUtils {
         return -1;
     }
 
-    private static int stubIndexOf2ConsecutiveS1(byte[] haystack, long fromIndex, int maxIndex, int c1, int c2) {
-        for (int i = (int) (fromIndex + 1); i < maxIndex; i++) {
+    private static int stubIndexOf2ConsecutiveS1(byte[] haystack, int fromIndex, int maxIndex, int c1, int c2) {
+        for (int i = fromIndex + 1; i < maxIndex; i++) {
             if (Byte.toUnsignedInt(haystack[i - 1]) == c1 && Byte.toUnsignedInt(haystack[i]) == c2) {
                 return i - 1;
             }
@@ -685,8 +685,8 @@ public final class ArrayUtils {
         return -1;
     }
 
-    private static int stubIndexOf2ConsecutiveS2(byte[] haystack, long fromIndex, int maxIndex, int c1, int c2) {
-        for (int i = (int) (fromIndex + 1); i < maxIndex; i++) {
+    private static int stubIndexOf2ConsecutiveS2(byte[] haystack, int fromIndex, int maxIndex, int c1, int c2) {
+        for (int i = fromIndex + 1; i < maxIndex; i++) {
             if (readChar(haystack, i - 1) == c1 && readChar(haystack, i) == c2) {
                 return i - 1;
             }
@@ -694,8 +694,8 @@ public final class ArrayUtils {
         return -1;
     }
 
-    private static int stubIndexOf2ConsecutiveS2(char[] haystack, long fromIndex, int maxIndex, int c1, int c2) {
-        for (int i = (int) (fromIndex + 1); i < maxIndex; i++) {
+    private static int stubIndexOf2ConsecutiveS2(char[] haystack, int fromIndex, int maxIndex, int c1, int c2) {
+        for (int i = fromIndex + 1; i < maxIndex; i++) {
             if (haystack[i - 1] == c1 && haystack[i] == c2) {
                 return i - 1;
             }
@@ -703,8 +703,8 @@ public final class ArrayUtils {
         return -1;
     }
 
-    private static int stubIndexOf2ConsecutiveWithOrMaskS1(byte[] haystack, long fromIndex, int maxIndex, int c1, int c2, int mask1, int mask2) {
-        for (int i = (int) (fromIndex + 1); i < maxIndex; i++) {
+    private static int stubIndexOf2ConsecutiveWithOrMaskS1(byte[] haystack, int fromIndex, int maxIndex, int c1, int c2, int mask1, int mask2) {
+        for (int i = fromIndex + 1; i < maxIndex; i++) {
             if ((Byte.toUnsignedInt(haystack[i - 1]) | mask1) == c1 && (Byte.toUnsignedInt(haystack[i]) | mask2) == c2) {
                 return i - 1;
             }
@@ -712,8 +712,8 @@ public final class ArrayUtils {
         return -1;
     }
 
-    private static int stubIndexOf2ConsecutiveWithOrMaskS2(byte[] haystack, long fromIndex, int maxIndex, int c1, int c2, int mask1, int mask2) {
-        for (int i = (int) (fromIndex + 1); i < maxIndex; i++) {
+    private static int stubIndexOf2ConsecutiveWithOrMaskS2(byte[] haystack, int fromIndex, int maxIndex, int c1, int c2, int mask1, int mask2) {
+        for (int i = fromIndex + 1; i < maxIndex; i++) {
             if ((readChar(haystack, i - 1) | mask1) == c1 && (readChar(haystack, i) | mask2) == c2) {
                 return i - 1;
             }
@@ -721,8 +721,8 @@ public final class ArrayUtils {
         return -1;
     }
 
-    private static int stubIndexOf2ConsecutiveWithOrMaskS2(char[] haystack, long fromIndex, int maxIndex, int c1, int c2, int mask1, int mask2) {
-        for (int i = (int) (fromIndex + 1); i < maxIndex; i++) {
+    private static int stubIndexOf2ConsecutiveWithOrMaskS2(char[] haystack, int fromIndex, int maxIndex, int c1, int c2, int mask1, int mask2) {
+        for (int i = fromIndex + 1; i < maxIndex; i++) {
             if ((haystack[i - 1] | mask1) == c1 && (haystack[i] | mask2) == c2) {
                 return i - 1;
             }
@@ -793,8 +793,8 @@ public final class ArrayUtils {
         return ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN ? byte0 | (byte1 << 8) : (byte0 << 8) | byte1;
     }
 
-    private static int runIndexOfS1(byte[] array, long fromIndex, int maxIndex, int... values) {
-        for (int i = (int) fromIndex; i < maxIndex; i++) {
+    private static int runIndexOfS1(byte[] array, int fromIndex, int maxIndex, int... values) {
+        for (int i = fromIndex; i < maxIndex; i++) {
             for (int v : values) {
                 if (Byte.toUnsignedInt(array[i]) == v) {
                     return i;
@@ -804,8 +804,8 @@ public final class ArrayUtils {
         return -1;
     }
 
-    private static int runIndexOfS1(byte[] array, long fromIndex, int maxIndex, byte... values) {
-        for (int i = (int) fromIndex; i < maxIndex; i++) {
+    private static int runIndexOfS1(byte[] array, int fromIndex, int maxIndex, byte... values) {
+        for (int i = fromIndex; i < maxIndex; i++) {
             for (int v : values) {
                 if (array[i] == v) {
                     return i;
@@ -815,8 +815,8 @@ public final class ArrayUtils {
         return -1;
     }
 
-    private static int runIndexOfS2(byte[] array, long fromIndex, int maxIndex, int... values) {
-        for (int i = (int) fromIndex; i < maxIndex; i++) {
+    private static int runIndexOfS2(byte[] array, int fromIndex, int maxIndex, int... values) {
+        for (int i = fromIndex; i < maxIndex; i++) {
             int c = readChar(array, i);
             for (int v : values) {
                 if (c == v) {
@@ -827,8 +827,8 @@ public final class ArrayUtils {
         return -1;
     }
 
-    private static int runIndexOfS2(char[] array, long fromIndex, int maxIndex, int... values) {
-        for (int i = (int) fromIndex; i < maxIndex; i++) {
+    private static int runIndexOfS2(char[] array, int fromIndex, int maxIndex, int... values) {
+        for (int i = fromIndex; i < maxIndex; i++) {
             for (int v : values) {
                 if (array[i] == v) {
                     return i;
@@ -838,8 +838,8 @@ public final class ArrayUtils {
         return -1;
     }
 
-    private static int runIndexOfS2(char[] array, long fromIndex, int maxIndex, char... values) {
-        for (int i = (int) fromIndex; i < maxIndex; i++) {
+    private static int runIndexOfS2(char[] array, int fromIndex, int maxIndex, char... values) {
+        for (int i = fromIndex; i < maxIndex; i++) {
             for (int v : values) {
                 if (array[i] == v) {
                     return i;
@@ -849,8 +849,8 @@ public final class ArrayUtils {
         return -1;
     }
 
-    private static int runIndexOfS2(String haystack, long fromIndex, int maxIndex, char[] needle) {
-        for (int i = (int) fromIndex; i < maxIndex; i++) {
+    private static int runIndexOfS2(String haystack, int fromIndex, int maxIndex, char[] needle) {
+        for (int i = fromIndex; i < maxIndex; i++) {
             for (char c : needle) {
                 if (haystack.charAt(i) == c) {
                     return i;
