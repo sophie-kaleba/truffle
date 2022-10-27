@@ -187,7 +187,7 @@ public abstract class DebugInfoBase {
      */
     private int oopAlignShift;
     /**
-     * The type entry for java.lang.Class
+     * The type entry for java.lang.Class.
      */
     private ClassEntry hubClassEntry;
 
