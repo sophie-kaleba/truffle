@@ -11,6 +11,7 @@ This changelog summarizes major changes to GraalVM Native Image.
 * (GR-42148) Adjust build output to report types (primitives, classes, interfaces, and arrays) instead of classes and revise the output schema of `-H:BuildOutputJSONFile`.
 * (GR-34179) Improved debugging support on Windows: Debug information now includes information about Java types (contributed by Red Hat).
 * (GR-41096) Support services loaded through the `java.util.ServiceLoader.ModuleServicesLookupIterator`. An example of such service is the `com.sun.jndi.rmi.registry.RegistryContextFactory`.
+* (GR-41912) The builder now generated reports for internal errors, which users can share when creating issues. By default, error reports follow the `svm_err_b_<timestamp>_pid<pid>.md` pattern and are created in the working directory. Use `-H:ErrorFile` to adjust the path or filename.
 
 ## Version 22.3.0
 * (GR-35721) Remove old build output style and the `-H:±BuildOutputUseNewStyle` option.
