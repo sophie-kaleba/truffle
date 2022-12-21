@@ -318,6 +318,10 @@ public abstract class AnalysisType extends AnalysisElement implements WrappedJav
         return result;
     }
 
+    public int getArrayDimension() {
+        return dimension;
+    }
+
     public void cleanupAfterAnalysis() {
         instantiatedTypes = null;
         instantiatedTypesNonNull = null;
@@ -1015,7 +1019,7 @@ public abstract class AnalysisType extends AnalysisElement implements WrappedJav
     }
 
     @Override
-    public ResolvedJavaType getElementalType() {
+    public AnalysisType getElementalType() {
         return elementalType;
     }
 
@@ -1254,7 +1258,7 @@ public abstract class AnalysisType extends AnalysisElement implements WrappedJav
         return universe.lookup(wrapped.getHostClass());
     }
 
-    AnalysisUniverse getUniverse() {
+    public AnalysisUniverse getUniverse() {
         return universe;
     }
 
