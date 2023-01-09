@@ -1051,6 +1051,9 @@ public abstract class AnalysisType extends AnalysisElement implements WrappedJav
 
             Object newResolvedMethod = universe.lookup(wrapped.resolveConcreteMethod(substMethod, substCallerType));
             if (newResolvedMethod == null) {
+                newResolvedMethod = getUniverse().getBigbang().fallbackResolveConcreteMethod(this, (AnalysisMethod) method);
+            }
+            if (newResolvedMethod == null) {
                 newResolvedMethod = NULL_METHOD;
             }
             Object oldResolvedMethod = resolvedMethods.putIfAbsent(method, newResolvedMethod);
