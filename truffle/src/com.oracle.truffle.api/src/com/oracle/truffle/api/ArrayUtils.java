@@ -40,6 +40,7 @@
  */
 package com.oracle.truffle.api;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.nio.ByteOrder;
 
@@ -857,5 +858,50 @@ public final class ArrayUtils {
             }
         }
         return -1;
+    }
+
+    public static Class<?>[] getClasses(Object[] elements) {
+        if  (elements == null) {
+            return null;
+        } else if (elements.length == 0) {
+            return null;
+        } else if (elements[0] == null) {
+            return null;
+        }
+        int end = elements.length;
+        Class<?>[] elementsClasses = new Class<?>[end];
+
+        for (int i = 0; i < end; i++) {
+            if (elements[i] != null) {
+                try {
+                    elementsClasses[i] = (Class<?>) elements[i];
+                }
+                catch (ClassCastException e) {
+                    elementsClasses[i] = elements[i].getClass();
+                }
+            }
+            else {
+                elementsClasses[i] = null;
+            }
+        }
+
+        return elementsClasses;
+    }
+
+    public static Object[] extractRange(Object[] source, int start, int end) {
+        assert assertExtractRangeArgs(source, start, end);
+        int length = end - start;
+        Object[] result = new Object[length];
+        System.arraycopy(source, start, result, 0, length);
+        return result;
+    }
+
+    private static boolean assertExtractRangeArgs(Object source, int start, int end) {
+        assert source != null;
+        assert start >= 0;
+        assert start <= Array.getLength(source);
+        assert end >= start;
+        assert end <= Array.getLength(source);
+        return true;
     }
 }

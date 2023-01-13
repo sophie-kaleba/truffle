@@ -27,6 +27,7 @@ package org.graalvm.compiler.truffle.runtime;
 import java.lang.ref.Reference;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Supplier;
 
+import com.oracle.truffle.api.ArrayUtils;
 import org.graalvm.compiler.truffle.common.CompilableTruffleAST;
 import org.graalvm.compiler.truffle.common.TruffleCallNode;
 import org.graalvm.compiler.truffle.options.PolyglotCompilerOptions;
@@ -1602,6 +1604,42 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
         this.maybeSetNeedsSplit(0, toDump);
     }
 
+    boolean compareArguments(ArgumentsProfile t0ArgProfile, Object[] t1UserArgs) {
+        boolean sameArgumentTypes = true;
+        Class<?>[] t0UserArgsTypes = null;
+        Class<?>[] t1UserArgsTypes = null;
+
+        if (!(t0ArgProfile == null) || !(t0ArgProfile.getTypes() == null)) {
+            Class<?>[] t0 = t0ArgProfile.getTypes();
+            Object[] t0UserArgs = ArrayUtils.extractRange(t0, 8, t0.length);
+            t0UserArgsTypes = ArrayUtils.getClasses(t0UserArgs);
+        }
+
+        if (t1UserArgs != null) {
+            t1UserArgsTypes = ArrayUtils.getClasses(t1UserArgs);
+        }
+
+        if (!(t0UserArgsTypes == null && t1UserArgsTypes == null)) {
+            sameArgumentTypes = Arrays.equals(t0UserArgsTypes, t1UserArgsTypes);
+        }
+
+        return sameArgumentTypes;
+    }
+
+    final void polymorphicSpecialize(Node source, Object[] t1RubyArgs) {
+        final OptimizedCallTarget callTarget = rootNode == null ? null : (OptimizedCallTarget) rootNode.getCallTarget();
+
+        List<Node> toDump = null;
+        if (engine.splittingDumpDecisions) {
+            toDump = new ArrayList<>();
+            pullOutParentChain(source, toDump);
+        }
+        logPolymorphicEvent(0, "Polymorphic event! Source:", source);
+
+        boolean sameArgumentTypes = compareArguments(callTarget.getInitializedArgumentsProfile(), t1RubyArgs);
+        this.maybeSetNeedsSplit(0, toDump, sameArgumentTypes);
+    }
+
     public final void resetNeedsSplit() {
         needsSplit = false;
     }
@@ -1625,6 +1663,38 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
                     needsSplit = true;
                 }
             }
+        } else {
+            logPolymorphicEvent(depth, "Set needs split to true");
+            needsSplit = true;
+            maybeDump(toDump);
+        }
+
+        logPolymorphicEvent(depth, "Return:", needsSplit);
+        return needsSplit;
+    }
+
+    private boolean maybeSetNeedsSplit(int depth, List<Node> toDump, boolean sameArgumentTypes) {
+        final OptimizedDirectCallNode onlyCaller = getSingleCallNode();
+        if (depth > engine.splittingMaxPropagationDepth || needsSplit || callSitesKnown == 0 || getCallCount() == 1) {
+            logEarlyReturn(depth, callSitesKnown);
+            return needsSplit;
+        }
+        if (onlyCaller != null) {
+            final RootNode callerRootNode = onlyCaller.getRootNode();
+            if (callerRootNode != null && callerRootNode.getCallTarget() != null) {
+                final OptimizedCallTarget callerTarget = (OptimizedCallTarget) callerRootNode.getCallTarget();
+                if (engine.splittingDumpDecisions) {
+                    pullOutParentChain(onlyCaller, toDump);
+                }
+                logPolymorphicEvent(depth, "One caller! Analysing parent.");
+                if (callerTarget.maybeSetNeedsSplit(depth + 1, toDump)) {
+                    logPolymorphicEvent(depth, "Set needs split to true via parent");
+                    needsSplit = true;
+                }
+            }
+        } else if (sameArgumentTypes) {
+            logPolymorphicEvent(depth, "Same argument types! Preventing splitting.");
+            needsSplit = false;
         } else {
             logPolymorphicEvent(depth, "Set needs split to true");
             needsSplit = true;

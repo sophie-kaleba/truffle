@@ -557,6 +557,11 @@ public abstract class Node implements NodeInterface, Cloneable {
         NodeAccessor.RUNTIME.reportPolymorphicSpecialize(this);
     }
 
+    protected final void reportPolymorphicSpecialize(Object[] t1) {
+        CompilerAsserts.neverPartOfCompilation();
+        NodeAccessor.RUNTIME.reportPolymorphicSpecialize(this, t1);
+    }
+
     /**
      * Converts this node to a textual representation useful for debugging.
      *
