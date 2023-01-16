@@ -1609,7 +1609,7 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
         Class<?>[] t0UserArgsTypes = null;
         Class<?>[] t1UserArgsTypes = null;
 
-        if (!(t0ArgProfile == null) || !(t0ArgProfile.getTypes() == null)) {
+        if (!(t0ArgProfile == null) && !(t0ArgProfile.getTypes() == null) && !(t0ArgProfile.getTypes().length < 8)) {
             Class<?>[] t0 = t0ArgProfile.getTypes();
             Object[] t0UserArgs = ArrayUtils.extractRange(t0, 8, t0.length);
             t0UserArgsTypes = ArrayUtils.getClasses(t0UserArgs);
