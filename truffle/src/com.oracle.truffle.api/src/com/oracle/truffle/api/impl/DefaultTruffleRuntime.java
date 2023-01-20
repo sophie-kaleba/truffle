@@ -122,6 +122,12 @@ public final class DefaultTruffleRuntime implements TruffleRuntime {
     }
 
     @Override
+    public DirectCallNode createDirectCallNode(CallTarget target, Object[] userArgs) {
+        Objects.requireNonNull(target);
+        return new DefaultDirectCallNode(target, userArgs);
+    }
+
+    @Override
     public IndirectCallNode createIndirectCallNode() {
         return new DefaultIndirectCallNode();
     }

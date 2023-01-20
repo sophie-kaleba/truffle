@@ -36,6 +36,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Supplier;
 
+import com.oracle.truffle.api.ArrayUtils;
+import com.oracle.truffle.api.nodes.DirectCallNode;
+import com.oracle.truffle.api.nodes.NodeCost;
 import org.graalvm.compiler.truffle.common.CompilableTruffleAST;
 import org.graalvm.compiler.truffle.common.TruffleCallNode;
 import org.graalvm.compiler.truffle.options.PolyglotCompilerOptions;
@@ -1672,12 +1675,45 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
                 if (engine.splittingDumpDecisions) {
                     pullOutParentChain(onlyCaller, toDump);
                 }
-                logPolymorphicEvent(depth, "One caller! Analysing parent.");
+                logPolymorphicEvent(depth, "One caller called " + callerRootNode.getName() + "! Analysing parent.");
                 if (callerTarget.maybeSetNeedsSplit(depth + 1, toDump)) {
                     logPolymorphicEvent(depth, "Set needs split to true via parent");
                     needsSplit = true;
                 }
             }
+        } else {
+            logPolymorphicEvent(depth, "Set needs split to true");
+            needsSplit = true;
+            maybeDump(toDump);
+        }
+
+        logPolymorphicEvent(depth, "Return:", needsSplit);
+        return needsSplit;
+    }
+
+    private boolean maybeSetNeedsSplit(int depth, List<Node> toDump, boolean sameArgumentTypes) {
+        final OptimizedDirectCallNode onlyCaller = getSingleCallNode();
+        if (depth > engine.splittingMaxPropagationDepth || needsSplit || callSitesKnown == 0 || getCallCount() == 1) {
+            logEarlyReturn(depth, callSitesKnown);
+            return needsSplit;
+        }
+        if (onlyCaller != null) {
+            final RootNode callerRootNode = onlyCaller.getRootNode();
+            if (callerRootNode != null && callerRootNode.getCallTarget() != null) {
+                final OptimizedCallTarget callerTarget = (OptimizedCallTarget) callerRootNode.getCallTarget();
+                if (engine.splittingDumpDecisions) {
+                    pullOutParentChain(onlyCaller, toDump);
+                }
+                logPolymorphicEvent(depth, "One caller! Analysing parent.");
+                if (callerTarget.maybeSetNeedsSplit(depth + 1, toDump, sameArgumentTypes)) {
+                    logPolymorphicEvent(depth, "Set needs split to true via parent");
+                    needsSplit = true;
+                }
+            }
+         } else if (!this.getGlobalNodeCost().isPolymorphic()) {
+            logPolymorphicEvent(depth, "Monomorphic caches! Set needs split to false");
+            needsSplit = false;
+            maybeDump(toDump);
         } else {
             logPolymorphicEvent(depth, "Set needs split to true");
             needsSplit = true;
@@ -1704,6 +1740,16 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
             final String argString = (arg == null) ? "" : " " + arg;
             log(String.format(SPLIT_LOG_FORMAT, indent + message + argString, this.toString()));
         }
+    }
+
+    private NodeCost getGlobalNodeCost() {
+         TruffleCallNode[] allCallSites = this.getCallNodes();
+         NodeCost result = NodeCost.NONE;
+         for (TruffleCallNode site : allCallSites) {
+             NodeCost current = ((DirectCallNode) site).getCost();
+             result = NodeCost.compareCosts(result, current);
+         }
+         return result;
     }
 
     private void maybeDump(List<Node> toDump) {
