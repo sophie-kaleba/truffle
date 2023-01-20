@@ -77,6 +77,8 @@ public interface TruffleRuntime {
      */
     DirectCallNode createDirectCallNode(CallTarget target);
 
+    DirectCallNode createDirectCallNode(CallTarget target, Object[] userArgs);
+
     /**
      * Creates a new loop node with an implementation provided by a Truffle runtime implementation.
      * Using Truffle loop nodes allows the runtime to do additional optimizations such as on stack

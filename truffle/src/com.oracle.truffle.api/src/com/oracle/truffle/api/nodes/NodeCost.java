@@ -98,6 +98,10 @@ public enum NodeCost {
         return this == NONE || this == UNINITIALIZED;
     }
 
+    public boolean isPolymorphic() {
+        return this == POLYMORPHIC || this == MEGAMORPHIC;
+    }
+
     /**
      * Finds the node cost for an associated node count. Returns {@link NodeCost#UNINITIALIZED} for
      * 0, {@link NodeCost#MONOMORPHIC} for 1 and {@link NodeCost#POLYMORPHIC} for any other value.
@@ -113,6 +117,16 @@ public enum NodeCost {
             default:
                 return POLYMORPHIC;
         }
+    }
+
+    public static NodeCost compareCosts(NodeCost cost1, NodeCost cost2) {
+        if (!cost1.isPolymorphic()) {
+            if (cost2.isPolymorphic()) {
+                return POLYMORPHIC;
+            }
+            return MONOMORPHIC;
+        }
+        return POLYMORPHIC;
     }
 
 }
