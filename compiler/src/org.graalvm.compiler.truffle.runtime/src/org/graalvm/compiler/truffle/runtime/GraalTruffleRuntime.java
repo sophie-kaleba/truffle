@@ -534,18 +534,6 @@ public abstract class GraalTruffleRuntime implements TruffleRuntime, TruffleComp
     }
 
     @Override
-    public final DirectCallNode createDirectCallNode(CallTarget target, Object[] userArgs) {
-        if (target instanceof OptimizedCallTarget) {
-            OptimizedCallTarget optimizedTarget = (OptimizedCallTarget) target;
-            final OptimizedDirectCallNode directCallNode = new OptimizedDirectCallNode(optimizedTarget, userArgs);
-            optimizedTarget.addDirectCallNode(directCallNode);
-            return directCallNode;
-        } else {
-            throw new IllegalStateException(String.format("Unexpected call target class %s!", target.getClass()));
-        }
-    }
-
-    @Override
     public final IndirectCallNode createIndirectCallNode() {
         return new OptimizedIndirectCallNode();
     }

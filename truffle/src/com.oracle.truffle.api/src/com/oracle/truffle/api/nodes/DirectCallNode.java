@@ -67,20 +67,14 @@ public abstract class DirectCallNode extends Node {
 
     /** @since 0.8 or earlier */
     protected final CallTarget callTarget;
-    protected Object[] previousUserArgs;
-    protected Object[] currentUserArgs;
 
     /** @since 0.8 or earlier */
     protected DirectCallNode(CallTarget callTarget) {
         this.callTarget = callTarget;
-        this.previousUserArgs = null;
-        this.currentUserArgs = null;
     }
 
     protected DirectCallNode(CallTarget callTarget, Object[] userArgs) {
         this.callTarget = callTarget;
-        this.previousUserArgs = null;
-        this.currentUserArgs = userArgs;
     }
 
     /**
@@ -102,15 +96,6 @@ public abstract class DirectCallNode extends Node {
      */
     public CallTarget getCallTarget() {
         return callTarget;
-    }
-
-    public Object[] getUserArgs() {
-        return this.previousUserArgs;
-    }
-
-    public void updateUserArgs(Object[] newUserArgs) {
-        this.previousUserArgs = this.currentUserArgs;
-        this.currentUserArgs = newUserArgs;
     }
 
     /**
@@ -223,10 +208,6 @@ public abstract class DirectCallNode extends Node {
     /** @since 0.8 or earlier */
     public static DirectCallNode create(CallTarget target) {
         return Truffle.getRuntime().createDirectCallNode(target);
-    }
-
-    public static DirectCallNode create(CallTarget target, Object[] userArgs) {
-        return Truffle.getRuntime().createDirectCallNode(target, userArgs);
     }
 
 }

@@ -1171,7 +1171,7 @@ public abstract class Accessor {
 
         public abstract void reportPolymorphicSpecialize(Node source);
 
-        public abstract void reportPolymorphicSpecialize(Node source, Object[] t1);
+        public abstract void reportPolymorphicSpecialize(Node source, boolean useAux);
 
         public abstract Object callInlined(Node callNode, CallTarget target, Object... arguments);
 

@@ -231,14 +231,14 @@ final class GraalRuntimeSupport extends RuntimeSupport {
         callTarget.polymorphicSpecialize(source);
     }
 
-    public void reportPolymorphicSpecialize(Node source, Object[] t1) {
+    public void reportPolymorphicSpecialize(Node source, boolean useAux) {
         final RootNode rootNode = source.getRootNode();
         final OptimizedCallTarget callTarget = rootNode == null ? null : (OptimizedCallTarget) rootNode.getCallTarget();
         if (callTarget == null) {
             return;
         }
         TruffleSplittingStrategy.newPolymorphicSpecialize(source, callTarget.engine);
-        callTarget.polymorphicSpecialize(source, t1);
+        callTarget.polymorphicSpecialize(source, true);
     }
 
     static final String CALL_INLINED_METHOD_NAME = "callInlined";
