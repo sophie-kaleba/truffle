@@ -203,7 +203,7 @@ final class DefaultRuntimeAccessor extends Accessor {
         }
 
         @Override
-        public void reportPolymorphicSpecialize(Node source, Object[] t1) {
+        public void reportPolymorphicSpecialize(Node source, boolean useAux) {
         }
 
         @Override
