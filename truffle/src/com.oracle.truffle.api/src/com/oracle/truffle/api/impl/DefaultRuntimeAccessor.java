@@ -203,6 +203,10 @@ final class DefaultRuntimeAccessor extends Accessor {
         }
 
         @Override
+        public void reportPolymorphicSpecialize(Node source, boolean useAux) {
+        }
+
+        @Override
         public Object createRuntimeData(OptionValues options, Function<String, TruffleLogger> loggerFactory) {
             return null;
         }

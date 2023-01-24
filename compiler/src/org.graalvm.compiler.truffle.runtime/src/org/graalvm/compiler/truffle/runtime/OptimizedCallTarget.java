@@ -1658,6 +1658,17 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
         this.maybeSetNeedsSplit(0, toDump);
     }
 
+    final void polymorphicSpecialize(Node source, boolean useAux) {
+        List<Node> toDump = null;
+        if (engine.splittingDumpDecisions) {
+            toDump = new ArrayList<>();
+            pullOutParentChain(source, toDump);
+        }
+        logPolymorphicEvent(0, "Polymorphic event! Source:", source);
+
+        this.maybeSetNeedsSplit(0, toDump, true);
+    }
+
     public final void resetNeedsSplit() {
         needsSplit = false;
     }
@@ -1675,7 +1686,7 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
                 if (engine.splittingDumpDecisions) {
                     pullOutParentChain(onlyCaller, toDump);
                 }
-                logPolymorphicEvent(depth, "One caller called " + callerRootNode.getName() + "! Analysing parent.");
+                logPolymorphicEvent(depth, "One caller! Analysing parent.");
                 if (callerTarget.maybeSetNeedsSplit(depth + 1, toDump)) {
                     logPolymorphicEvent(depth, "Set needs split to true via parent");
                     needsSplit = true;
@@ -1705,12 +1716,12 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
                     pullOutParentChain(onlyCaller, toDump);
                 }
                 logPolymorphicEvent(depth, "One caller! Analysing parent.");
-                if (callerTarget.maybeSetNeedsSplit(depth + 1, toDump, sameArgumentTypes)) {
+                if (callerTarget.maybeSetNeedsSplit(depth + 1, toDump, true)) {
                     logPolymorphicEvent(depth, "Set needs split to true via parent");
                     needsSplit = true;
                 }
             }
-         } else if (!this.getGlobalNodeCost().isPolymorphic()) {
+        } else if (!this.getGlobalNodeCost().isPolymorphic()) {
             logPolymorphicEvent(depth, "Monomorphic caches! Set needs split to false");
             needsSplit = false;
             maybeDump(toDump);
@@ -1742,16 +1753,6 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
         }
     }
 
-    private NodeCost getGlobalNodeCost() {
-         TruffleCallNode[] allCallSites = this.getCallNodes();
-         NodeCost result = NodeCost.NONE;
-         for (TruffleCallNode site : allCallSites) {
-             NodeCost current = ((DirectCallNode) site).getCost();
-             result = NodeCost.compareCosts(result, current);
-         }
-         return result;
-    }
-
     private void maybeDump(List<Node> toDump) {
         if (engine.splittingDumpDecisions) {
             final List<OptimizedDirectCallNode> callers = new ArrayList<>();
@@ -1761,6 +1762,16 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
             }
             PolymorphicSpecializeDump.dumpPolymorphicSpecialize(this, toDump);
         }
+    }
+
+    private NodeCost getGlobalNodeCost() {
+        TruffleCallNode[] allCallSites = this.getCallNodes();
+        NodeCost result = NodeCost.NONE;
+        for (TruffleCallNode site : allCallSites) {
+            NodeCost current = ((DirectCallNode) site).getCost();
+            result = NodeCost.compareCosts(result, current);
+        }
+        return result;
     }
 
     private static void pullOutParentChain(Node node, List<Node> toDump) {
