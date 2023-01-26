@@ -73,10 +73,6 @@ public abstract class DirectCallNode extends Node {
         this.callTarget = callTarget;
     }
 
-    protected DirectCallNode(CallTarget callTarget, Object[] userArgs) {
-        this.callTarget = callTarget;
-    }
-
     /**
      * Calls the inner {@link CallTarget} returned by {@link #getCurrentCallTarget()}.
      *
