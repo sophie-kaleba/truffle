@@ -1664,19 +1664,25 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
                     pullOutParentChain(onlyCaller, toDump);
                 }
                 logPolymorphicEvent(depth, "One caller! Analysing parent.");
-                if (callerTarget.maybeSetNeedsSplit(depth + 1, toDump, true)) {
-                    logPolymorphicEvent(depth, "Set needs split to true via parent");
+                callerTarget.maybeSetNeedsSplit(depth + 1, toDump, true);
+                logPolymorphicEvent(depth, "Set needs split to true via parent");
+                needsSplit = true;
+//                if (callerTarget.maybeSetNeedsSplit(depth + 1, toDump, true)) {
+//                    logPolymorphicEvent(depth, "Set needs split to true via parent");
+//                    needsSplit = true;
+//                }
+//            }
+            } else {
+                if (!this.getGlobalNodeCost().isPolymorphic()) {
+                    logPolymorphicEvent(depth, "Monomorphic caches! Set needs split to false");
+                    needsSplit = false;
+                    maybeDump(toDump);
+                } else {
+                    logPolymorphicEvent(depth, "Set needs split to true");
                     needsSplit = true;
+                    maybeDump(toDump);
                 }
             }
-        } else if (!this.getGlobalNodeCost().isPolymorphic()) {
-            logPolymorphicEvent(depth, "Monomorphic caches! Set needs split to false");
-            needsSplit = false;
-            maybeDump(toDump);
-        } else {
-            logPolymorphicEvent(depth, "Set needs split to true");
-            needsSplit = true;
-            maybeDump(toDump);
         }
 
         logPolymorphicEvent(depth, "Return:", needsSplit);
@@ -1713,8 +1719,8 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
     }
 
     private NodeCost getGlobalNodeCost() {
-        TruffleCallNode[] allCallSites = this.getCallNodes();
-        NodeCost result = NodeCost.NONE;
+        final TruffleCallNode[] allCallSites = this.getCallNodes();
+        NodeCost result = NodeCost.UNINITIALIZED;
         for (TruffleCallNode site : allCallSites) {
             NodeCost current = ((DirectCallNode) site).getCost();
             result = NodeCost.compareCosts(result, current);
