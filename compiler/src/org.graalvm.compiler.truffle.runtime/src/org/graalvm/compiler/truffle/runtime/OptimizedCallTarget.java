@@ -134,6 +134,8 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
     /** The AST to be executed when this call target is called. */
     private final RootNode rootNode;
 
+    private NodeCost cacheState;
+
     /** Whether this call target was cloned, compiled or called. */
     @CompilationFinal protected volatile boolean initialized;
     @CompilationFinal private volatile boolean loaded;
@@ -353,6 +355,15 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
         // node(s).
         this.uninitializedNodeCount = isOSR() ? -1 : GraalRuntimeAccessor.NODES.adoptChildrenAndCount(rootNode);
         id = idCounter.getAndIncrement();
+        cacheState = NodeCost.UNINITIALIZED;
+    }
+
+    private NodeCost getCacheState() {
+        return this.cacheState;
+    }
+
+    public void setCacheState(NodeCost newState) {
+        this.cacheState = newState;
     }
 
     final Assumption getNodeRewritingAssumption() {
@@ -1723,17 +1734,16 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
 //                    logPolymorphicEvent(depth, "Set needs split to true via parent");
 //                    needsSplit = true;
 //                }
-//            }
+            }
+        } else {
+            if(!this.getCacheState().isPolymorphic()) {
+                logPolymorphicEvent(depth, "Monomorphic caches! Set needs split to false");
+                needsSplit = false;
+                maybeDump(toDump);
             } else {
-                if (!this.getGlobalNodeCost().isPolymorphic()) {
-                    logPolymorphicEvent(depth, "Monomorphic caches! Set needs split to false");
-                    needsSplit = false;
-                    maybeDump(toDump);
-                } else {
-                    logPolymorphicEvent(depth, "Set needs split to true");
-                    needsSplit = true;
-                    maybeDump(toDump);
-                }
+                logPolymorphicEvent(depth, "Set needs split to true");
+                needsSplit = true;
+                maybeDump(toDump);
             }
         }
 
@@ -1768,16 +1778,6 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
             }
             PolymorphicSpecializeDump.dumpPolymorphicSpecialize(this, toDump);
         }
-    }
-
-    private NodeCost getGlobalNodeCost() {
-        final TruffleCallNode[] allCallSites = this.getCallNodes();
-        NodeCost result = NodeCost.UNINITIALIZED;
-        for (TruffleCallNode site : allCallSites) {
-            NodeCost current = ((DirectCallNode) site).getCost();
-            result = NodeCost.compareCosts(result, current);
-        }
-        return result;
     }
 
     private static void pullOutParentChain(Node node, List<Node> toDump) {
