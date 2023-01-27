@@ -40,6 +40,7 @@
  */
 package com.oracle.truffle.api;
 
+import com.oracle.truffle.api.nodes.NodeCost;
 import com.oracle.truffle.api.nodes.RootNode;
 
 /**
@@ -51,4 +52,6 @@ import com.oracle.truffle.api.nodes.RootNode;
 public interface RootCallTarget extends CallTarget {
     /** @since 0.8 or earlier */
     RootNode getRootNode();
+
+    void setCacheState(NodeCost newState);
 }

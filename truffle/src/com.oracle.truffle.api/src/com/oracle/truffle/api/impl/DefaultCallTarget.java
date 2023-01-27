@@ -48,6 +48,7 @@ import com.oracle.truffle.api.frame.VirtualFrame;
 import com.oracle.truffle.api.impl.DefaultTruffleRuntime.DefaultFrameInstance;
 import com.oracle.truffle.api.nodes.EncapsulatingNodeReference;
 import com.oracle.truffle.api.nodes.Node;
+import com.oracle.truffle.api.nodes.NodeCost;
 import com.oracle.truffle.api.nodes.RootNode;
 
 /**
@@ -60,10 +61,20 @@ public final class DefaultCallTarget implements RootCallTarget {
     private final RootNode rootNode;
     private volatile boolean initialized;
     private volatile boolean loaded;
+    private NodeCost cacheState;
 
     DefaultCallTarget(RootNode function) {
         this.rootNode = function;
         this.rootNode.adoptChildren();
+        this.cacheState = NodeCost.UNINITIALIZED;
+    }
+
+    private NodeCost getCacheState() {
+        return this.cacheState;
+    }
+
+    public void setCacheState(NodeCost newState) {
+        this.cacheState = newState;
     }
 
     @Override
