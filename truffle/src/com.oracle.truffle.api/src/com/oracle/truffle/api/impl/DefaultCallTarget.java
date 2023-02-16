@@ -69,14 +69,6 @@ public final class DefaultCallTarget implements RootCallTarget {
         this.cacheState = NodeCost.UNINITIALIZED;
     }
 
-    private NodeCost getCacheState() {
-        return this.cacheState;
-    }
-
-    public void setCacheState(NodeCost newState) {
-        this.cacheState = newState;
-    }
-
     @Override
     public String toString() {
         return rootNode.toString();

@@ -36,8 +36,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Supplier;
 
-import com.oracle.truffle.api.ArrayUtils;
-import com.oracle.truffle.api.nodes.DirectCallNode;
 import com.oracle.truffle.api.nodes.NodeCost;
 import org.graalvm.compiler.truffle.common.CompilableTruffleAST;
 import org.graalvm.compiler.truffle.common.TruffleCallNode;
@@ -356,14 +354,6 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
         this.uninitializedNodeCount = isOSR() ? -1 : GraalRuntimeAccessor.NODES.adoptChildrenAndCount(rootNode);
         id = idCounter.getAndIncrement();
         cacheState = NodeCost.UNINITIALIZED;
-    }
-
-    private NodeCost getCacheState() {
-        return this.cacheState;
-    }
-
-    public void setCacheState(NodeCost newState) {
-        this.cacheState = newState;
     }
 
     final Assumption getNodeRewritingAssumption() {
@@ -1730,13 +1720,9 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
                 callerTarget.maybeSetNeedsSplit(depth + 1, toDump, true);
                 logPolymorphicEvent(depth, "Set needs split to true via parent");
                 needsSplit = true;
-//                if (callerTarget.maybeSetNeedsSplit(depth + 1, toDump, true)) {
-//                    logPolymorphicEvent(depth, "Set needs split to true via parent");
-//                    needsSplit = true;
-//                }
             }
         } else {
-            if(!this.getCacheState().isPolymorphic()) {
+            if(!this.cacheState.isPolymorphic()) {
                 logPolymorphicEvent(depth, "Monomorphic caches! Set needs split to false");
                 needsSplit = false;
                 maybeDump(toDump);
@@ -1749,6 +1735,10 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
 
         logPolymorphicEvent(depth, "Return:", needsSplit);
         return needsSplit;
+    }
+
+    public void setCacheState(NodeCost cacheState) {
+        this.cacheState = cacheState;
     }
 
     private void logEarlyReturn(int depth, int numberOfKnownCallNodes) {
