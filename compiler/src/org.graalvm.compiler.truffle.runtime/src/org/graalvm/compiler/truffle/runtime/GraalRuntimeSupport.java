@@ -26,6 +26,7 @@ package org.graalvm.compiler.truffle.runtime;
 
 import java.util.function.Function;
 
+import com.oracle.truffle.api.nodes.NodeCost;
 import org.graalvm.compiler.truffle.options.PolyglotCompilerOptions;
 import org.graalvm.options.OptionDescriptors;
 import org.graalvm.options.OptionValues;
@@ -237,6 +238,7 @@ final class GraalRuntimeSupport extends RuntimeSupport {
         if (callTarget == null) {
             return;
         }
+        callTarget.setCacheState(NodeCost.POLYMORPHIC);
         TruffleSplittingStrategy.newPolymorphicSpecialize(source, callTarget.engine);
         callTarget.polymorphicSpecialize(source, true);
     }

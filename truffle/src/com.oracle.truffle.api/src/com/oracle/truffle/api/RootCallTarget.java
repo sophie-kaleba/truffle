@@ -53,5 +53,4 @@ public interface RootCallTarget extends CallTarget {
     /** @since 0.8 or earlier */
     RootNode getRootNode();
 
-    void setCacheState(NodeCost newState);
 }
