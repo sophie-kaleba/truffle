@@ -24,6 +24,8 @@
  */
 package org.graalvm.compiler.truffle.runtime;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -322,6 +324,15 @@ final class TruffleSplittingStrategy {
                         out.printf(D_LONG_FORMAT, entry.getKey(), entry.getValue());
                     }
                 }
+                try (FileWriter fw = new FileWriter("splitting_statistics.log", true)) {
+                    fw.append("TotalSplitCount:" + (engineData.splitCount + stat.forcedSplitCount)+"\n");
+                    fw.append("UnforcedSplitCount:" + (engineData.splitCount)+"\n");
+                    fw.append("NodesCreatedThroughSplitting:" + stat.splitNodeCount+"\n");
+                    fw.append("TotalNodesCreatedWithoutSplitting:" + stat.totalCreatedNodeCount+"\n");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
                 final TruffleLogger log = engineData.getEngineLogger();
                 log.log(Level.INFO, messageBuilder.toString());
             }
