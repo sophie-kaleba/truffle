@@ -73,7 +73,6 @@ final class TruffleSplittingStrategy {
                             call.replace(call, "Split call node");
                         }
                         call.setSplitCallTarget(cachedRoot);
-                        //OptimizedCallTarget.runtime().getListener().onCompilationSplit(call);
                     });
                 }
                 else {
@@ -86,7 +85,6 @@ final class TruffleSplittingStrategy {
             } else {
                 doSplit(engineData, call);
             }
-
         }
     }
 

@@ -38,6 +38,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Supplier;
 
+import org.graalvm.collections.EconomicMap;
+import org.graalvm.collections.Equivalence;
 import org.graalvm.compiler.truffle.common.CompilableTruffleAST;
 import org.graalvm.compiler.truffle.common.TruffleCallNode;
 import org.graalvm.compiler.truffle.options.PolyglotCompilerOptions;
@@ -343,7 +345,7 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
     private static final AtomicInteger idCounter = new AtomicInteger(0);
 
     private boolean isSpecializedSubtreeRoot;
-    private Map<Long, OptimizedCallTarget> contextualPairs;
+    @CompilationFinal private EconomicMap<Long, OptimizedCallTarget> contextualPairs = EconomicMap.create();
 
     protected OptimizedCallTarget(OptimizedCallTarget sourceCallTarget, RootNode rootNode) {
         assert sourceCallTarget == null || sourceCallTarget.sourceCallTarget == null : "Cannot create a clone of a cloned CallTarget";
@@ -357,7 +359,6 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
         this.uninitializedNodeCount = isOSR() ? -1 : GraalRuntimeAccessor.NODES.adoptChildrenAndCount(rootNode);
         id = idCounter.getAndIncrement();
         this.isSpecializedSubtreeRoot = false;
-        this.contextualPairs = new HashMap<Long, OptimizedCallTarget>();
         this.contextSignature = this.hashCode();
     }
 
