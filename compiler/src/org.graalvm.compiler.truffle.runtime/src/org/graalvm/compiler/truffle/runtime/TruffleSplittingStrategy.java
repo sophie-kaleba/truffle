@@ -53,13 +53,40 @@ final class TruffleSplittingStrategy {
     private static final int RECURSIVE_SPLIT_DEPTH = 3;
 
     @InliningCutoff
-    static void beforeCall(OptimizedDirectCallNode call, OptimizedCallTarget currentTarget) {
+    static void beforeCall(OptimizedDirectCallNode call, OptimizedCallTarget currentTarget, long currentContextSignature) {
         final EngineData engineData = currentTarget.engine;
         if (engineData.traceSplittingSummary) {
             traceSplittingPreShouldSplit(engineData, currentTarget);
         }
         if (shouldSplit(engineData, call)) {
-            doSplit(engineData, call);
+            if (currentTarget.isSpecializedSubtreeRoot()) {
+                // has this context been encountered before?
+                OptimizedCallTarget cachedRoot = currentTarget.lookfForContext(currentContextSignature);
+                if (cachedRoot != null) {
+                    // dispatching to specialised subtree
+                    call.atomic(() -> {
+                        currentTarget.removeDirectCallNode(call);
+                        cachedRoot.addDirectCallNode(call);
+
+                        if (call.getParent() != null) {
+                            // dummy replace to report the split, irrelevant if this node is not adopted
+                            call.replace(call, "Split call node");
+                        }
+                        call.setSplitCallTarget(cachedRoot);
+                        //OptimizedCallTarget.runtime().getListener().onCompilationSplit(call);
+                    });
+                }
+                else {
+                    doSplit(engineData, call);
+                    OptimizedCallTarget splitTarget = call.getClonedCallTarget();
+                    if (splitTarget != null) { // Split occurred, and a new specialised subtree root can be stored
+                        currentTarget.addContextualPair(currentContextSignature, splitTarget);
+                    }
+                }
+            } else {
+                doSplit(engineData, call);
+            }
+
         }
     }
 

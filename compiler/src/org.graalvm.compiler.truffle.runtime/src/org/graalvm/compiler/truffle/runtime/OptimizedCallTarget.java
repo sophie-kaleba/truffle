@@ -27,10 +27,12 @@ package org.graalvm.compiler.truffle.runtime;
 import java.lang.ref.Reference;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -153,6 +155,7 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
      */
     private int callAndLoopCount;
     private int highestCompiledTier = 0;
+    private long contextSignature;
 
     public void compiledTier(int tier) {
         highestCompiledTier = Math.max(highestCompiledTier, tier);
@@ -339,6 +342,9 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
     public final int id;
     private static final AtomicInteger idCounter = new AtomicInteger(0);
 
+    private boolean isSpecializedSubtreeRoot;
+    private Map<Long, OptimizedCallTarget> contextualPairs;
+
     protected OptimizedCallTarget(OptimizedCallTarget sourceCallTarget, RootNode rootNode) {
         assert sourceCallTarget == null || sourceCallTarget.sourceCallTarget == null : "Cannot create a clone of a cloned CallTarget";
         this.sourceCallTarget = sourceCallTarget;
@@ -350,6 +356,30 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
         // node(s).
         this.uninitializedNodeCount = isOSR() ? -1 : GraalRuntimeAccessor.NODES.adoptChildrenAndCount(rootNode);
         id = idCounter.getAndIncrement();
+        this.isSpecializedSubtreeRoot = false;
+        this.contextualPairs = new HashMap<Long, OptimizedCallTarget>();
+        this.contextSignature = this.hashCode();
+    }
+
+    @Override
+    public void setContextSignature(long computeFingerprint) {
+        this.contextSignature = computeFingerprint;
+    }
+
+    @Override
+    public long getContextSignature() {
+        return this.contextSignature;
+    }
+
+    public OptimizedCallTarget lookfForContext(long contextSignature) {
+        OptimizedCallTarget dispatchTarget = null;
+
+        if(this.contextualPairs.containsKey(contextSignature)) dispatchTarget = this.contextualPairs.get(contextSignature);
+        return dispatchTarget;
+    }
+
+    public void addContextualPair(long contextSignature, OptimizedCallTarget split) {
+        this.contextualPairs.put(contextSignature, split);
     }
 
     final Assumption getNodeRewritingAssumption() {
@@ -358,6 +388,10 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
             assumption = initializeNodeRewritingAssumption();
         }
         return assumption;
+    }
+
+    public boolean isSpecializedSubtreeRoot() {
+        return isSpecializedSubtreeRoot;
     }
 
     @Override
@@ -1678,12 +1712,13 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
                     needsSplit = true;
                 }
             }
-        } else {
+        } else { //when several callers, split targets but stop propagating
             logPolymorphicEvent(depth, "Set needs split to true");
             needsSplit = true;
             maybeDump(toDump);
         }
 
+        if (depth > 0) this.isSpecializedSubtreeRoot = true; //TODO - check whether it flags the correct target
         logPolymorphicEvent(depth, "Return:", needsSplit);
         return needsSplit;
     }

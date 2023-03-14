@@ -45,6 +45,11 @@ public final class OptimizedDirectCallNode extends DirectCallNode implements Tru
     private int callCount;
     private boolean inliningForced;
     @CompilationFinal private Class<? extends Throwable> exceptionProfile;
+
+    public void setSplitCallTarget(OptimizedCallTarget splitCallTarget) {
+        this.splitCallTarget = splitCallTarget;
+    }
+
     @CompilationFinal private OptimizedCallTarget splitCallTarget;
     private volatile boolean splitDecided;
 
@@ -63,7 +68,7 @@ public final class OptimizedDirectCallNode extends DirectCallNode implements Tru
             incrementCallCount();
         }
         if (HostCompilerDirectives.inInterpreterFastPath()) {
-            target = onInterpreterCall(target);
+            target = onInterpreterCall(target, target.getContextSignature());
         }
         try {
             return target.callDirect(this, arguments);
@@ -147,12 +152,12 @@ public final class OptimizedDirectCallNode extends DirectCallNode implements Tru
      * @return The current call target (ie. getCurrentCallTarget) In case a splitting decision was
      *         made during this interpreter call, the argument target otherwise.
      */
-    private OptimizedCallTarget onInterpreterCall(OptimizedCallTarget target) {
+    private OptimizedCallTarget onInterpreterCall(OptimizedCallTarget target, long contextSignature) {
         if (target.isNeedsSplit() && !splitDecided) {
             // We intentionally avoid locking here because worst case is a double decision printed
             // and preventing that is not worth the performance impact of locking
             splitDecided = true;
-            TruffleSplittingStrategy.beforeCall(this, target);
+            TruffleSplittingStrategy.beforeCall(this, target, contextSignature);
             return getCurrentCallTarget();
         }
         return target;

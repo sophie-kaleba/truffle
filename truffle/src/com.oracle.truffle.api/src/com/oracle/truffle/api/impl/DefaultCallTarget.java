@@ -60,10 +60,12 @@ public final class DefaultCallTarget implements RootCallTarget {
     private final RootNode rootNode;
     private volatile boolean initialized;
     private volatile boolean loaded;
+    private long contextSignature;
 
     DefaultCallTarget(RootNode function) {
         this.rootNode = function;
         this.rootNode.adoptChildren();
+        this.contextSignature = this.hashCode();
     }
 
     @Override
@@ -73,6 +75,16 @@ public final class DefaultCallTarget implements RootCallTarget {
 
     public RootNode getRootNode() {
         return rootNode;
+    }
+
+    @Override
+    public void setContextSignature(long computeFingerprint) {
+        this.contextSignature = computeFingerprint;
+    }
+
+    @Override
+    public long getContextSignature() {
+        return this.contextSignature;
     }
 
     Object callDirectOrIndirect(final Node callNode, Object... args) {
