@@ -72,6 +72,8 @@ public final class StatisticsListener extends AbstractGraalTruffleRuntimeListene
     private int queues;
     private int dequeues;
     private int splits;
+    private int contextualDispatch;
+    private int sharedTargets;
 
     private final IdentityStatistics<String> temporaryBailoutReasons = new IdentityStatistics<>();
     private final IdentityStatistics<String> permanentBailoutReasons = new IdentityStatistics<>();
@@ -150,6 +152,15 @@ public final class StatisticsListener extends AbstractGraalTruffleRuntimeListene
     @Override
     public synchronized void onCompilationSplit(OptimizedDirectCallNode callNode) {
         splits++;
+    }
+
+    @Override
+    public synchronized void onContextualDispatch(OptimizedDirectCallNode callNode) {
+        contextualDispatch++;
+    }
+
+    public synchronized void onSharedTargetAddition(OptimizedDirectCallNode callNode, OptimizedCallTarget targetsHolder, long currentContextSignature) {
+        sharedTargets++;
     }
 
     @Override
@@ -694,6 +705,21 @@ public final class StatisticsListener extends AbstractGraalTruffleRuntimeListene
             StatisticsListener listener = target.engine.statisticsListener;
             if (listener != null) {
                 listener.onCompilationStarted(target, task);
+            }
+        }
+
+        @Override
+        public void onContextualDispatch(OptimizedDirectCallNode callNode) {
+            StatisticsListener listener = callNode.getCallTarget().engine.statisticsListener;
+            if (listener != null) {
+                listener.onContextualDispatch(callNode);
+            }
+        }
+
+        public void onSharedTargetAddition(OptimizedDirectCallNode callNode, OptimizedCallTarget targetsHolder, long currentContextSignature) {
+            StatisticsListener listener = callNode.getCallTarget().engine.statisticsListener;
+            if (listener != null) {
+                listener.onSharedTargetAddition(callNode, targetsHolder, currentContextSignature);
             }
         }
 

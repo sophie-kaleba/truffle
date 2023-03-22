@@ -33,6 +33,7 @@ import org.graalvm.compiler.truffle.common.TruffleCompilerListener;
 import org.graalvm.compiler.truffle.common.TruffleInliningData;
 
 import com.oracle.truffle.api.frame.Frame;
+import org.graalvm.compiler.truffle.runtime.debug.StatisticsListener;
 
 /**
  * A collection for broadcasting {@link GraalTruffleRuntimeListener} events and converting
@@ -47,6 +48,15 @@ final class GraalTruffleRuntimeListenerDispatcher extends CopyOnWriteArrayList<G
             return super.add(e);
         }
         return false;
+    }
+
+    @Override
+    public void onContextualDispatch(OptimizedDirectCallNode callNode) {
+        invokeListeners((l) -> l.onContextualDispatch(callNode));
+    }
+
+    public void onSharedTargetAddition(OptimizedDirectCallNode callNode, OptimizedCallTarget targetsHolder, long currentContextSignature) {
+        invokeListeners((l) -> l.onSharedTargetAddition(callNode, targetsHolder, currentContextSignature));
     }
 
     @Override

@@ -120,6 +120,8 @@ public final class EngineData {
     @CompilationFinal public int splittingMaxCalleeSize;
     @CompilationFinal public int splittingMaxPropagationDepth;
     @CompilationFinal public double splittingGrowthLimit;
+    @CompilationFinal public int dispatchCount;
+    @CompilationFinal public int numberOfSharedTargets;
 
     // inlining options
     @CompilationFinal public boolean inlining;

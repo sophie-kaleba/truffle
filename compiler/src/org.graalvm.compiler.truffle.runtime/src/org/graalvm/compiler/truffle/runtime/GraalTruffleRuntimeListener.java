@@ -53,6 +53,12 @@ import com.oracle.truffle.api.nodes.Node;
  */
 public interface GraalTruffleRuntimeListener {
 
+    default void onContextualDispatch(OptimizedDirectCallNode callNode) {
+    }
+
+    default void onSharedTargetAddition(OptimizedDirectCallNode callNode, OptimizedCallTarget targetsHolder, long currentContextSignature){
+    }
+
     /**
      * Notifies this object when the target of a Truffle call node is
      * {@linkplain DirectCallNode#cloneCallTarget() cloned}.

@@ -47,6 +47,30 @@ public final class TraceSplittingListener implements GraalTruffleRuntimeListener
     }
 
     private int splitCount;
+    private int dispatchCount;
+    private int addCount;
+
+    @Override
+    public void onContextualDispatch(OptimizedDirectCallNode callNode) {
+        OptimizedCallTarget callTarget = callNode.getCallTarget();
+        if (callTarget.getOptionValue(PolyglotCompilerOptions.TraceSplitting)) {
+            String label = String.format("dispatch %3s-%08x-%-4s ", dispatchCount++, 0xFFFF_FFFFL & callNode.getCurrentCallTarget().hashCode(), callNode.getCallCount());
+            final Map<String, Object> debugProperties = callTarget.getDebugProperties();
+            debugProperties.put("SourceSection", extractSourceSection(callNode));
+            TruffleCompilerRuntime.getRuntime().logEvent(callTarget, 0, label, debugProperties);
+        }
+    }
+
+    public void onSharedTargetAddition(OptimizedDirectCallNode callNode, OptimizedCallTarget targetsHolder, long currentContextSignature) {
+        // callTarget is the split callTarget, being added as a potential dispatch target in the targetsHolder, under the key contextSignature
+        OptimizedCallTarget callTarget = callNode.getCallTarget();
+        if (callTarget.getOptionValue(PolyglotCompilerOptions.TraceSplitting)) {
+            String label = String.format("add %3s-%08x-%-4s ", addCount++, 0xFFFF_FFFFL & callTarget.hashCode(), callNode.getCallCount());
+            final Map<String, Object> debugProperties = callTarget.getDebugProperties();
+            debugProperties.put("SourceSection", extractSourceSection(callNode));
+            TruffleCompilerRuntime.getRuntime().logEvent(callTarget, 0, label, debugProperties);
+        }
+    }
 
     @Override
     public void onCompilationSplit(OptimizedDirectCallNode callNode) {

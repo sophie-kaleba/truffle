@@ -40,9 +40,13 @@ import java.util.function.BiFunction;
 import com.oracle.truffle.api.RootCallTarget;
 import com.oracle.truffle.api.TruffleLogger;
 import com.oracle.truffle.api.HostCompilerDirectives.InliningCutoff;
+import com.oracle.truffle.api.nodes.DirectCallNode;
 import com.oracle.truffle.api.nodes.Node;
 import com.oracle.truffle.api.nodes.NodeUtil;
 import com.oracle.truffle.api.nodes.RootNode;
+import org.graalvm.collections.EconomicMap;
+import org.graalvm.compiler.truffle.common.TruffleCallNode;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.logging.Level;
@@ -59,7 +63,7 @@ final class TruffleSplittingStrategy {
             traceSplittingPreShouldSplit(engineData, currentTarget);
         }
         if (shouldSplit(engineData, call)) {
-            if (currentTarget.isSpecializedSubtreeRoot()) {
+            if (currentTarget.getContextualDispatchStatus() == OptimizedCallTarget.ContextualDispatch.DISPATCH_LOCATION) {
                 // has this context been encountered before?
                 OptimizedCallTarget cachedRoot = currentTarget.lookfForContext(currentContextSignature);
                 if (cachedRoot != null) {
@@ -73,18 +77,62 @@ final class TruffleSplittingStrategy {
                             call.replace(call, "Split call node");
                         }
                         call.setSplitCallTarget(cachedRoot);
+                        OptimizedCallTarget.runtime().getListener().onContextualDispatch(call);
+                        if (engineData.traceSplittingSummary) {
+                            traceDispatching(engineData, currentTarget, currentContextSignature);
+                        }
                     });
-                }
-                else {
+                    flagSharedTargets(cachedRoot, RECURSIVE_SPLIT_DEPTH);
+                } else {
                     doSplit(engineData, call);
                     OptimizedCallTarget splitTarget = call.getClonedCallTarget();
                     if (splitTarget != null) { // Split occurred, and a new specialised subtree root can be stored
+                        splitTarget.setContextualDispatchStatus(RootCallTarget.ContextualDispatch.PART_OF_DISPATCH_TREE);
                         currentTarget.addContextualPair(currentContextSignature, splitTarget);
+                        OptimizedCallTarget.runtime().getListener().onSharedTargetAddition(call, currentTarget, currentContextSignature);
+                        if (engineData.traceSplittingSummary) {
+                            traceSharing(engineData, currentTarget);
+                        }
                     }
                 }
             } else {
                 doSplit(engineData, call);
             }
+        }
+    }
+
+    private static void flagSharedTargets(OptimizedCallTarget target, int depth) {
+        // base case - leaf
+        TruffleCallNode[] callNodes = target.getCallNodes();
+        if (callNodes.length == 0 || depth == 0) return;
+
+        for (TruffleCallNode node : callNodes) {
+            OptimizedCallTarget t = (OptimizedCallTarget) node.getCurrentCallTarget();
+            if (t.isSplit()) {
+                t.setContextualDispatchStatus(RootCallTarget.ContextualDispatch.PART_OF_DISPATCH_TREE);
+                flagSharedTargets(t, depth - 1);
+            }
+        }
+    }
+
+    private static void traceSharing(EngineData engineData, OptimizedCallTarget target) {
+        synchronized (engineData.splittingStatistics) {
+            engineData.splittingStatistics.numberOfSharedTargets++;
+            engineData.splittingStatistics.contexts.put(target, engineData.splittingStatistics.contexts.getOrDefault(target, 0) + 1);
+        }
+    }
+
+    private static void traceDispatching(EngineData engineData, OptimizedCallTarget target, long currentContextSignature) {
+        synchronized (engineData.splittingStatistics) {
+            engineData.splittingStatistics.dispatchCount++;
+            engineData.splittingStatistics.dispatchs.put(target.toString()+" "+currentContextSignature, engineData.splittingStatistics.dispatchs.getOrDefault(target.toString()+" "+currentContextSignature, 0) + 1);
+        }
+    }
+
+    public static void traceMisprediction(EngineData engineData, OptimizedCallTarget target, long currentContextSignature) {
+        synchronized (engineData.splittingStatistics) {
+            engineData.splittingStatistics.mispredictCounts++;
+            engineData.splittingStatistics.mispredicts.put(target.toString()+" "+currentContextSignature, engineData.splittingStatistics.dispatchs.getOrDefault(target.toString()+" "+currentContextSignature, 0) + 1);
         }
     }
 
@@ -300,6 +348,10 @@ final class TruffleSplittingStrategy {
     static class SplitStatisticsData {
         final Map<Class<? extends Node>, Integer> polymorphicNodes = new HashMap<>();
         final Map<OptimizedCallTarget, Integer> splitTargets = new HashMap<>();
+        final Map<OptimizedCallTarget, Integer> contexts = new HashMap<>();
+        final Map<String, Integer> dispatchs = new HashMap<>();
+        final Map<String,Integer> mispredicts = new HashMap<>();
+        int mispredictCounts;
         int splitCount;
         int forcedSplitCount;
         int splitNodeCount;
@@ -307,6 +359,8 @@ final class TruffleSplittingStrategy {
         int totalCreatedNodeCount;
         int wastedNodeCount;
         int wastedTargetCount;
+        int dispatchCount;
+        int numberOfSharedTargets;
 
         SplitStatisticsData() {
         }
@@ -348,6 +402,21 @@ final class TruffleSplittingStrategy {
 
                     out.printf(DELIMITER_FORMAT, "NODES");
                     for (Map.Entry<Class<? extends Node>, Integer> entry : sortByIntegerValue(stat.polymorphicNodes).entrySet()) {
+                        out.printf(D_LONG_FORMAT, entry.getKey(), entry.getValue());
+                    }
+
+                    out.printf(DELIMITER_FORMAT, "NUMBER OF CONTEXTS PER TARGETS");
+                    for (Entry<OptimizedCallTarget, Integer> entry : sortByIntegerValue(stat.contexts).entrySet()) {
+                        out.printf(D_LONG_FORMAT, entry.getKey(), entry.getValue());
+                    }
+
+                    out.printf(DELIMITER_FORMAT, "DISPATCHES");
+                    for (Entry<String, Integer> entry : sortByIntegerValue(stat.dispatchs).entrySet()) {
+                        out.printf(D_LONG_FORMAT, entry.getKey(), entry.getValue());
+                    }
+
+                    out.printf(DELIMITER_FORMAT, "MISPREDICTS");
+                    for (Entry<String, Integer> entry : sortByIntegerValue(stat.mispredicts).entrySet()) {
                         out.printf(D_LONG_FORMAT, entry.getKey(), entry.getValue());
                     }
                 }
