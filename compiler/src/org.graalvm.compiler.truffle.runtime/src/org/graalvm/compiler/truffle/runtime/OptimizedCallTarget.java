@@ -55,6 +55,7 @@ import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.OptimizationFailedException;
 import com.oracle.truffle.api.ReplaceObserver;
 import com.oracle.truffle.api.RootCallTarget;
+import com.oracle.truffle.api.RootCallTarget.ContextualDispatch;
 import com.oracle.truffle.api.Truffle;
 import com.oracle.truffle.api.TruffleOptions;
 import com.oracle.truffle.api.TruffleSafepoint;
@@ -344,7 +345,7 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
     public final int id;
     private static final AtomicInteger idCounter = new AtomicInteger(0);
 
-    private boolean isSpecializedSubtreeRoot;
+    private ContextualDispatch contextualDispatchStatus;
     @CompilationFinal private EconomicMap<Long, OptimizedCallTarget> contextualPairs = EconomicMap.create();
 
     protected OptimizedCallTarget(OptimizedCallTarget sourceCallTarget, RootNode rootNode) {
@@ -358,8 +359,12 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
         // node(s).
         this.uninitializedNodeCount = isOSR() ? -1 : GraalRuntimeAccessor.NODES.adoptChildrenAndCount(rootNode);
         id = idCounter.getAndIncrement();
-        this.isSpecializedSubtreeRoot = false;
+        this.contextualDispatchStatus = ContextualDispatch.NONE;
         this.contextSignature = this.hashCode();
+    }
+
+    public void setContextualDispatchStatus(ContextualDispatch status) {
+        this.contextualDispatchStatus = status;
     }
 
     @Override
@@ -391,8 +396,8 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
         return assumption;
     }
 
-    public boolean isSpecializedSubtreeRoot() {
-        return isSpecializedSubtreeRoot;
+    public ContextualDispatch getContextualDispatchStatus() {
+        return this.contextualDispatchStatus;
     }
 
     @Override
@@ -1711,15 +1716,25 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
                 if (callerTarget.maybeSetNeedsSplit(depth + 1, toDump)) {
                     logPolymorphicEvent(depth, "Set needs split to true via parent");
                     needsSplit = true;
+                    if (engine.traceSplittingSummary) {
+                        if (this.getContextualDispatchStatus() == ContextualDispatch.PART_OF_DISPATCH_TREE) {
+                            TruffleSplittingStrategy.traceMisprediction(engine, this, this.getContextSignature());
+                        }
+                    }
                 }
             }
         } else { //when several callers, split targets but stop propagating
             logPolymorphicEvent(depth, "Set needs split to true");
+            if (engine.traceSplittingSummary) {
+                if (this.getContextualDispatchStatus() == ContextualDispatch.PART_OF_DISPATCH_TREE) {
+                    TruffleSplittingStrategy.traceMisprediction(engine, this, this.getContextSignature());
+                }
+            }
             needsSplit = true;
             maybeDump(toDump);
         }
 
-        if (depth > 0) this.isSpecializedSubtreeRoot = true; //TODO - check whether it flags the correct target
+        if (depth > 0 && !this.isSplit()) this.contextualDispatchStatus = ContextualDispatch.DISPATCH_LOCATION; //TODO - check whether it flags the correct target
         logPolymorphicEvent(depth, "Return:", needsSplit);
         return needsSplit;
     }

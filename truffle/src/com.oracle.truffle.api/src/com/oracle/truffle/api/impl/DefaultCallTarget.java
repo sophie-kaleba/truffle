@@ -61,11 +61,13 @@ public final class DefaultCallTarget implements RootCallTarget {
     private volatile boolean initialized;
     private volatile boolean loaded;
     private long contextSignature;
+    private ContextualDispatch status;
 
     DefaultCallTarget(RootNode function) {
         this.rootNode = function;
         this.rootNode.adoptChildren();
         this.contextSignature = this.hashCode();
+        this.status = ContextualDispatch.NONE;
     }
 
     @Override
@@ -75,6 +77,11 @@ public final class DefaultCallTarget implements RootCallTarget {
 
     public RootNode getRootNode() {
         return rootNode;
+    }
+
+    @Override
+    public void setContextualDispatchStatus(ContextualDispatch status) {
+        this.status = status;
     }
 
     @Override

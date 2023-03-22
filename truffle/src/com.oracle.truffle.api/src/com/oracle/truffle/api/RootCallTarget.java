@@ -49,10 +49,17 @@ import com.oracle.truffle.api.nodes.RootNode;
  * @since 0.8 or earlier
  */
 public interface RootCallTarget extends CallTarget {
+    enum ContextualDispatch {
+        NONE,
+        DISPATCH_LOCATION,
+        PART_OF_DISPATCH_TREE
+    }
     /** @since 0.8 or earlier */
     RootNode getRootNode();
 
     void setContextSignature(long computeFingerprint);
+
+    void setContextualDispatchStatus(ContextualDispatch status);
 
     long getContextSignature();
 }
