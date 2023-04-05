@@ -64,44 +64,54 @@ final class TruffleSplittingStrategy {
         }
         if (shouldSplit(engineData, call)) {
             if (currentTarget.getContextualDispatchStatus() == OptimizedCallTarget.ContextualDispatch.DISPATCH_LOCATION) {
-                // has this context been encountered before?
                 OptimizedCallTarget cachedRoot = currentTarget.lookfForContext(currentContextSignature);
                 if (cachedRoot != null) {
                     // dispatching to specialised subtree
-                    call.atomic(() -> {
-                        currentTarget.removeDirectCallNode(call);
-                        cachedRoot.addDirectCallNode(call);
-
-                        if (call.getParent() != null) {
-                            // dummy replace to report the split, irrelevant if this node is not adopted
-                            call.replace(call, "Split call node");
-                        }
-                        call.setSplitCallTarget(cachedRoot);
-                        OptimizedCallTarget.runtime().getListener().onContextualDispatch(call);
-                        if (engineData.traceSplittingSummary) {
-                            traceDispatching(engineData, currentTarget, currentContextSignature);
-                        }
-                    });
-                    flagSharedTargets(cachedRoot, RECURSIVE_SPLIT_DEPTH);
+                    call.changeBinding(cachedRoot);
+                    if (engineData.traceSplittingSummary) {
+                        traceDispatching(engineData, currentTarget, currentContextSignature);
+                    }
+                    flagSharedTargets(cachedRoot, RECURSIVE_SPLIT_DEPTH, currentContextSignature);
                 } else {
                     doSplit(engineData, call);
                     OptimizedCallTarget splitTarget = call.getClonedCallTarget();
-                    if (splitTarget != null) { // Split occurred, and a new specialised subtree root can be stored
-                        splitTarget.setContextualDispatchStatus(RootCallTarget.ContextualDispatch.PART_OF_DISPATCH_TREE);
-                        currentTarget.addContextualPair(currentContextSignature, splitTarget);
-                        OptimizedCallTarget.runtime().getListener().onSharedTargetAddition(call, currentTarget, currentContextSignature);
-                        if (engineData.traceSplittingSummary) {
-                            traceSharing(engineData, currentTarget);
-                        }
-                    }
+                    createDispatchEntry(engineData, call, splitTarget, currentTarget, currentContextSignature);
                 }
+            } else if(currentTarget.getContextualDispatchStatus() == OptimizedCallTarget.ContextualDispatch.PART_OF_DISPATCH_TREE && !currentTarget.getContext().isValid) {
+                // there was a mispredict, the subtree is polluted and should not be relied upon anymore. Revert the binding, and split again.
+                OptimizedCallTarget sourceTarget = call.getCallTarget();
+
+                call.revertSplit(currentTarget, sourceTarget);
+                sourceTarget.deleteContextualPair(currentContextSignature);
+                if (engineData.traceSplittingSummary) {
+                    traceUnSharing(engineData, sourceTarget, currentContextSignature);
+                }
+
+                doSplit(engineData, call);
+//                OptimizedCallTarget splitTarget = call.getClonedCallTarget();
+//                createDispatchEntry(engineData, call, splitTarget, sourceTarget, currentContextSignature);
+//                if (engineData.traceSplittingSummary) {
+//                    traceRebinding(engineData, currentTarget, sourceTarget, currentContextSignature);
+//                }
             } else {
                 doSplit(engineData, call);
             }
         }
     }
 
-    private static void flagSharedTargets(OptimizedCallTarget target, int depth) {
+    private static void createDispatchEntry(EngineData engineData, OptimizedDirectCallNode call, OptimizedCallTarget splitTarget,
+                                            OptimizedCallTarget dispatchLocation, long currentContextSignature) {
+        if (splitTarget != null) { // Split occurred, and a new specialised subtree root can be stored
+            splitTarget.setContextualDispatchStatus(RootCallTarget.ContextualDispatch.PART_OF_DISPATCH_TREE);
+            dispatchLocation.addContextualPair(currentContextSignature, splitTarget);
+            OptimizedCallTarget.runtime().getListener().onSharedTargetAddition(call, dispatchLocation, currentContextSignature);
+            if (engineData.traceSplittingSummary) {
+                traceSharing(engineData, dispatchLocation);
+            }
+        }
+    }
+
+    private static void flagSharedTargets(OptimizedCallTarget target, int depth, long rootSignature) {
         // base case - leaf
         TruffleCallNode[] callNodes = target.getCallNodes();
         if (callNodes.length == 0 || depth == 0) return;
@@ -109,8 +119,10 @@ final class TruffleSplittingStrategy {
         for (TruffleCallNode node : callNodes) {
             OptimizedCallTarget t = (OptimizedCallTarget) node.getCurrentCallTarget();
             if (t.isSplit()) {
+                // assert t.getContext().getContextSignature() == t.getContext().getRootContextSignature();
+                t.getContext().setRootContextSignature(rootSignature);
                 t.setContextualDispatchStatus(RootCallTarget.ContextualDispatch.PART_OF_DISPATCH_TREE);
-                flagSharedTargets(t, depth - 1);
+                flagSharedTargets(t, depth - 1, rootSignature);
             }
         }
     }
@@ -179,6 +191,7 @@ final class TruffleSplittingStrategy {
             return false;
         }
         if (isRecursiveSplit(call, RECURSIVE_SPLIT_DEPTH)) {
+            // TODO topi - no clue, have to check
             maybeTraceFail(engine, call, TruffleSplittingStrategy::recursiveSplitMessageFactory);
             return false;
         }
@@ -238,13 +251,18 @@ final class TruffleSplittingStrategy {
     }
 
     private static boolean canSplit(EngineData engine, OptimizedDirectCallNode call) {
-        if (call.isCallTargetCloned()) {
-            return false;
-        }
         if (!engine.splitting) {
             return false;
         }
         if (!call.isCallTargetCloningAllowed()) {
+            return false;
+        }
+        if (call.getCallTarget().getContextualDispatchStatus() == RootCallTarget.ContextualDispatch.DISPATCH_LOCATION && !call.getCurrentCallTarget().getContext().isValid)  {
+            // TODO topi - really not sure about the precedence order here. Why would engine.splitting would come after anything anyway?
+            // I've reshuffled - handle with care
+            return true;
+        }
+        if (call.isCallTargetCloned()) {
             return false;
         }
         return true;

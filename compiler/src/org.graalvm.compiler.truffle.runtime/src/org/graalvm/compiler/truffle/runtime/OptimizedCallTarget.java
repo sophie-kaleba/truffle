@@ -27,19 +27,16 @@ package org.graalvm.compiler.truffle.runtime;
 import java.lang.ref.Reference;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.TreeMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Supplier;
 
 import org.graalvm.collections.EconomicMap;
-import org.graalvm.collections.Equivalence;
 import org.graalvm.compiler.truffle.common.CompilableTruffleAST;
 import org.graalvm.compiler.truffle.common.TruffleCallNode;
 import org.graalvm.compiler.truffle.options.PolyglotCompilerOptions;
@@ -55,7 +52,6 @@ import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.OptimizationFailedException;
 import com.oracle.truffle.api.ReplaceObserver;
 import com.oracle.truffle.api.RootCallTarget;
-import com.oracle.truffle.api.RootCallTarget.ContextualDispatch;
 import com.oracle.truffle.api.Truffle;
 import com.oracle.truffle.api.TruffleOptions;
 import com.oracle.truffle.api.TruffleSafepoint;
@@ -391,6 +387,10 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
 
     public void addContextualPair(long contextSignature, OptimizedCallTarget split) {
         this.contextualPairs.put(contextSignature, split);
+    }
+
+    public void deleteContextualPair(long contextSignature) {
+        this.contextualPairs.removeKey(contextSignature);
     }
 
     final Assumption getNodeRewritingAssumption() {
@@ -1577,7 +1577,7 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
     public final OptimizedDirectCallNode getCallSiteForSplit() {
         if (isSplit()) {
             OptimizedDirectCallNode callNode = getSingleCallNode();
-            assert callNode != null;
+            assert callNode != null; // TODO @topi 2023-04-04 - does this invariant still hold with my changes?
             return callNode;
         } else {
             return null;
@@ -1722,8 +1722,9 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
                     logPolymorphicEvent(depth, "Set needs split to true via parent");
                     needsSplit = true;
                     if (engine.traceSplittingSummary) {
-                        if (this.getContextualDispatchStatus() == ContextualDispatch.PART_OF_DISPATCH_TREE) {
-                            TruffleSplittingStrategy.traceMisprediction(engine, this, this.getContextSignature());
+                        if (this.getContextualDispatchStatus() == ContextualDispatch.PART_OF_DISPATCH_TREE || this.getContextualDispatchStatus() == ContextualDispatch.DISPATCH_LOCATION) {
+                            this.getContext().invalidateContext();
+                            TruffleSplittingStrategy.traceMisprediction(engine, this, this.getContext().getRootContextSignature()); // TODO - would be great to get the contextSignature of the root of the subtree as well (should have the two)
                         }
                     }
                 }
@@ -1731,8 +1732,9 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
         } else { //when several callers, split targets but stop propagating
             logPolymorphicEvent(depth, "Set needs split to true");
             if (engine.traceSplittingSummary) {
-                if (this.getContextualDispatchStatus() == ContextualDispatch.PART_OF_DISPATCH_TREE) {
-                    TruffleSplittingStrategy.traceMisprediction(engine, this, this.getContextSignature());
+                if (this.getContextualDispatchStatus() == ContextualDispatch.PART_OF_DISPATCH_TREE || this.getContextualDispatchStatus() == ContextualDispatch.DISPATCH_LOCATION) {
+                    this.getContext().invalidateContext();
+                    TruffleSplittingStrategy.traceMisprediction(engine, this, this.getContext().getRootContextSignature());
                 }
             }
             needsSplit = true;
