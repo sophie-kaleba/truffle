@@ -54,6 +54,40 @@ public interface RootCallTarget extends CallTarget {
         DISPATCH_LOCATION,
         PART_OF_DISPATCH_TREE
     }
+
+    class ContextSignature {
+
+        public long signature;
+        public long rootContextSignature;
+        public boolean isValid;
+
+        public ContextSignature(long signature) {
+            this.signature = signature;
+            this.rootContextSignature = signature; // a call target won't be necessarily part of a shared subtree
+            isValid = true;
+        }
+
+        public void invalidateContext() {
+            this.isValid = false;
+        }
+
+        public void setRootContextSignature(long signature) {
+            this.rootContextSignature = signature;
+        }
+
+        public void setSelfContextSignature(long signature) {
+            this.signature = signature;
+        }
+
+        public long getContextSignature() {
+            return this.signature;
+        }
+
+        public long getRootContextSignature() {
+            return this.rootContextSignature;
+        }
+    }
+
     /** @since 0.8 or earlier */
     RootNode getRootNode();
 
@@ -62,4 +96,6 @@ public interface RootCallTarget extends CallTarget {
     void setContextualDispatchStatus(ContextualDispatch status);
 
     long getContextSignature();
+
+    ContextSignature getContext();
 }
