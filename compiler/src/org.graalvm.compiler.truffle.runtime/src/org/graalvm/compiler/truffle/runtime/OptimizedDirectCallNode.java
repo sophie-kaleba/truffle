@@ -159,6 +159,12 @@ public final class OptimizedDirectCallNode extends DirectCallNode implements Tru
             splitDecided = true;
             TruffleSplittingStrategy.beforeCall(this, target, contextSignature);
             return getCurrentCallTarget();
+        } else if (target.isNeedsSplit() && !target.getContext().isValid) {
+            // We intentionally avoid locking here because worst case is a double decision printed
+            // and preventing that is not worth the performance impact of locking
+            splitDecided = true;
+            TruffleSplittingStrategy.beforeCall(this, target, contextSignature);
+            return getCurrentCallTarget();
         }
         return target;
     }
