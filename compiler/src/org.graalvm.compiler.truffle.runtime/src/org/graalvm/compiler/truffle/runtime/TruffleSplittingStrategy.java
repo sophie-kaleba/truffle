@@ -40,11 +40,9 @@ import java.util.function.BiFunction;
 import com.oracle.truffle.api.RootCallTarget;
 import com.oracle.truffle.api.TruffleLogger;
 import com.oracle.truffle.api.HostCompilerDirectives.InliningCutoff;
-import com.oracle.truffle.api.nodes.DirectCallNode;
 import com.oracle.truffle.api.nodes.Node;
 import com.oracle.truffle.api.nodes.NodeUtil;
 import com.oracle.truffle.api.nodes.RootNode;
-import org.graalvm.collections.EconomicMap;
 import org.graalvm.compiler.truffle.common.TruffleCallNode;
 
 import java.io.PrintWriter;
@@ -134,6 +132,13 @@ final class TruffleSplittingStrategy {
         }
     }
 
+    private static void traceUnSharing(EngineData engineData, OptimizedCallTarget target, long currentSignature) {
+        synchronized (engineData.splittingStatistics) {
+            engineData.splittingStatistics.numberOfSharedTargets++;
+            engineData.splittingStatistics.contexts.put(target, engineData.splittingStatistics.contexts.getOrDefault(target, 0) - 1);
+        }
+    }
+
     private static void traceDispatching(EngineData engineData, OptimizedCallTarget target, long currentContextSignature) {
         synchronized (engineData.splittingStatistics) {
             engineData.splittingStatistics.dispatchCount++;
@@ -145,6 +150,13 @@ final class TruffleSplittingStrategy {
         synchronized (engineData.splittingStatistics) {
             engineData.splittingStatistics.mispredictCounts++;
             engineData.splittingStatistics.mispredicts.put(target.toString()+" "+currentContextSignature, engineData.splittingStatistics.dispatchs.getOrDefault(target.toString()+" "+currentContextSignature, 0) + 1);
+        }
+    }
+
+    public static void traceRebinding(EngineData engineData, OptimizedCallTarget currentTarget, OptimizedCallTarget sourceTarget, long currentContextSignature) {
+        synchronized (engineData.splittingStatistics) {
+            engineData.splittingStatistics.rebindingCounts++;
+            engineData.splittingStatistics.rebindings.put(currentTarget.toString()+" "+currentContextSignature, engineData.splittingStatistics.rebindings.getOrDefault(currentTarget.toString()+" "+currentContextSignature, 0) + 1);
         }
     }
 
@@ -369,6 +381,8 @@ final class TruffleSplittingStrategy {
         final Map<OptimizedCallTarget, Integer> contexts = new HashMap<>();
         final Map<String, Integer> dispatchs = new HashMap<>();
         final Map<String,Integer> mispredicts = new HashMap<>();
+        final Map<String,Integer> rebindings = new HashMap<>();
+        int rebindingCounts;
         int mispredictCounts;
         int splitCount;
         int forcedSplitCount;
@@ -435,6 +449,11 @@ final class TruffleSplittingStrategy {
 
                     out.printf(DELIMITER_FORMAT, "MISPREDICTS");
                     for (Entry<String, Integer> entry : sortByIntegerValue(stat.mispredicts).entrySet()) {
+                        out.printf(D_LONG_FORMAT, entry.getKey(), entry.getValue());
+                    }
+
+                    out.printf(DELIMITER_FORMAT, "REBINDINGS");
+                    for (Entry<String, Integer> entry : sortByIntegerValue(stat.rebindings).entrySet()) {
                         out.printf(D_LONG_FORMAT, entry.getKey(), entry.getValue());
                     }
                 }
