@@ -158,7 +158,7 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
      */
     private int callAndLoopCount;
     private int highestCompiledTier = 0;
-    private long contextSignature;
+    private ContextSignature context;
 
     public void compiledTier(int tier) {
         highestCompiledTier = Math.max(highestCompiledTier, tier);
@@ -360,7 +360,12 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
         this.uninitializedNodeCount = isOSR() ? -1 : GraalRuntimeAccessor.NODES.adoptChildrenAndCount(rootNode);
         id = idCounter.getAndIncrement();
         this.contextualDispatchStatus = ContextualDispatch.NONE;
-        this.contextSignature = this.hashCode();
+        this.context = new ContextSignature(this.hashCode());
+    }
+
+    @Override
+    public ContextSignature getContext() {
+        return this.context;
     }
 
     public void setContextualDispatchStatus(ContextualDispatch status) {
@@ -369,12 +374,12 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
 
     @Override
     public void setContextSignature(long computeFingerprint) {
-        this.contextSignature = computeFingerprint;
+        this.context.setSelfContextSignature(computeFingerprint);
     }
 
     @Override
     public long getContextSignature() {
-        return this.contextSignature;
+        return this.context.getContextSignature();
     }
 
     public OptimizedCallTarget lookfForContext(long contextSignature) {
