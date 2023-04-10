@@ -462,6 +462,7 @@ final class TruffleSplittingStrategy {
                     fw.append("UnforcedSplitCount:" + (engineData.splitCount)+"\n");
                     fw.append("NodesCreatedThroughSplitting:" + stat.splitNodeCount+"\n");
                     fw.append("TotalNodesCreatedWithoutSplitting:" + stat.totalCreatedNodeCount+"\n");
+                    fw.append("TotalNodesCreated:" + Node.numberOfNodesCreated+"\n");
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
