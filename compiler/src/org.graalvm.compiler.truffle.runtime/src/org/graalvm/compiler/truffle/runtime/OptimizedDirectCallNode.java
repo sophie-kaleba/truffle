@@ -196,6 +196,38 @@ public final class OptimizedDirectCallNode extends DirectCallNode implements Tru
         });
     }
 
+    void revertSplit(OptimizedCallTarget oldTarget, OptimizedCallTarget sourceTarget) {
+        CompilerAsserts.neverPartOfCompilation();
+
+        atomic(() -> {
+            oldTarget.removeDirectCallNode(this);
+            sourceTarget.addDirectCallNode(this);
+
+            if (getParent() != null) {
+                // dummy replace to report the split, irrelevant if this node is not adopted
+                replace(this, "Split call node");
+            }
+            splitCallTarget = null;
+            // OptimizedCallTarget.runtime().getListener().onContextualDispatch(this); //TODO - change this
+        });
+    }
+
+    void changeBinding(OptimizedCallTarget newTarget) {
+        CompilerAsserts.neverPartOfCompilation();
+
+        atomic(() -> {
+            OptimizedCallTarget currentTarget = getCallTarget();
+            currentTarget.removeDirectCallNode(this);
+            newTarget.addDirectCallNode(this);
+
+            if (getParent() != null) {
+                // dummy replace to report the split, irrelevant if this node is not adopted
+                replace(this, "Split call node");
+            }
+            splitCallTarget = newTarget;
+        });
+    }
+
     @Override
     public boolean cloneCallTarget() {
         TruffleSplittingStrategy.forceSplitting(this);
