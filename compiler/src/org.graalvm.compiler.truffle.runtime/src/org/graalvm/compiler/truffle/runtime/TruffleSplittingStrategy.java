@@ -101,6 +101,7 @@ final class TruffleSplittingStrategy {
             OptimizedCallTarget.runtime().getListener().onSharedTargetAddition(call, dispatchLocation, currentContextSignature);
             if (engineData.traceSplittingSummary) {
                 traceSharing(engineData, dispatchLocation);
+                traceDispatching(engineData, splitTarget, currentContextSignature);
             }
         }
     }
