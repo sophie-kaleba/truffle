@@ -78,12 +78,8 @@ final class TruffleSplittingStrategy {
             } else if(currentTarget.getContextualDispatchStatus() == OptimizedCallTarget.ContextualDispatch.PART_OF_DISPATCH_TREE && !currentTarget.getContext().isValid) {
                 // there was a mispredict, the subtree is polluted and should not be relied upon anymore. Revert the binding, and split again.
                 OptimizedCallTarget sourceTarget = call.getCallTarget();
-
                 call.revertSplit(currentTarget, sourceTarget);
                 sourceTarget.deleteContextualPair(currentContextSignature);
-                if (engineData.traceSplittingSummary) {
-                    traceUnSharing(engineData, sourceTarget, currentContextSignature);
-                }
 
                 doSplit(engineData, call);
 //                OptimizedCallTarget splitTarget = call.getClonedCallTarget();
@@ -129,13 +125,6 @@ final class TruffleSplittingStrategy {
         synchronized (engineData.splittingStatistics) {
             engineData.splittingStatistics.numberOfSharedTargets++;
             engineData.splittingStatistics.contexts.put(target, engineData.splittingStatistics.contexts.getOrDefault(target, 0) + 1);
-        }
-    }
-
-    private static void traceUnSharing(EngineData engineData, OptimizedCallTarget target, long currentSignature) {
-        synchronized (engineData.splittingStatistics) {
-            engineData.splittingStatistics.numberOfSharedTargets++;
-            engineData.splittingStatistics.contexts.put(target, engineData.splittingStatistics.contexts.getOrDefault(target, 0) - 1);
         }
     }
 
@@ -449,11 +438,6 @@ final class TruffleSplittingStrategy {
 
                     out.printf(DELIMITER_FORMAT, "MISPREDICTS");
                     for (Entry<String, Integer> entry : sortByIntegerValue(stat.mispredicts).entrySet()) {
-                        out.printf(D_LONG_FORMAT, entry.getKey(), entry.getValue());
-                    }
-
-                    out.printf(DELIMITER_FORMAT, "REBINDINGS");
-                    for (Entry<String, Integer> entry : sortByIntegerValue(stat.rebindings).entrySet()) {
                         out.printf(D_LONG_FORMAT, entry.getKey(), entry.getValue());
                     }
                 }
