@@ -139,14 +139,7 @@ final class TruffleSplittingStrategy {
     public static void traceMisprediction(EngineData engineData, OptimizedCallTarget target, long currentContextSignature) {
         synchronized (engineData.splittingStatistics) {
             engineData.splittingStatistics.mispredictCounts++;
-            engineData.splittingStatistics.mispredicts.put(target.toString()+" "+currentContextSignature, engineData.splittingStatistics.dispatchs.getOrDefault(target.toString()+" "+currentContextSignature, 0) + 1);
-        }
-    }
-
-    public static void traceRebinding(EngineData engineData, OptimizedCallTarget currentTarget, OptimizedCallTarget sourceTarget, long currentContextSignature) {
-        synchronized (engineData.splittingStatistics) {
-            engineData.splittingStatistics.rebindingCounts++;
-            engineData.splittingStatistics.rebindings.put(currentTarget.toString()+" "+currentContextSignature, engineData.splittingStatistics.rebindings.getOrDefault(currentTarget.toString()+" "+currentContextSignature, 0) + 1);
+            engineData.splittingStatistics.mispredicts.put(target.toString()+" "+currentContextSignature, engineData.splittingStatistics.mispredicts.getOrDefault(target.toString()+" "+currentContextSignature, 0) + 1);
         }
     }
 
