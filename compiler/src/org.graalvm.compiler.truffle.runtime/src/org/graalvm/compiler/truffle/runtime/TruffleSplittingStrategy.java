@@ -67,7 +67,7 @@ final class TruffleSplittingStrategy {
                     // dispatching to specialised subtree
                     call.changeBinding(cachedRoot);
                     if (engineData.traceSplittingSummary) {
-                        traceDispatching(engineData, currentTarget, currentContextSignature);
+                        traceDispatching(engineData, cachedRoot, currentContextSignature);
                     }
                     flagSharedTargets(cachedRoot, RECURSIVE_SPLIT_DEPTH, currentContextSignature);
                 } else {
