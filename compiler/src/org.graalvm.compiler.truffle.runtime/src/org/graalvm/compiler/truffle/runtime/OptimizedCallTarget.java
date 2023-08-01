@@ -1739,7 +1739,8 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
             maybeDump(toDump);
         }
 
-        if (depth > 0 && !this.isSplit()) this.contextualDispatchStatus = ContextualDispatch.DISPATCH_LOCATION; //TODO - check whether it flags the correct target
+        //if (depth > 0 && !this.isSplit()) this.contextualDispatchStatus = ContextualDispatch.DISPATCH_LOCATION; //TODO - check whether it flags the correct target
+        if (depth >= 0 && this.needsSplit) this.contextualDispatchStatus = ContextualDispatch.DISPATCH_LOCATION; //TODO - check whether it flags the correct target
         logPolymorphicEvent(depth, "Return:", needsSplit);
         return needsSplit;
     }
