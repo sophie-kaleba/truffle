@@ -127,6 +127,7 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
     private static final WeakReference<OptimizedDirectCallNode> NO_CALL = new WeakReference<>(null);
     private static final WeakReference<OptimizedDirectCallNode> MULTIPLE_CALLS = null;
     private static final String SPLIT_LOG_FORMAT = "[poly-event] %-70s %s";
+    private static final String MIS_LOG_FORMAT = "[mispredict] %-70s";
     private static final int MAX_PROFILED_ARGUMENTS = 256;
 
     /** The AST to be executed when this call target is called. */
@@ -1721,9 +1722,10 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
                 if (callerTarget.maybeSetNeedsSplit(depth + 1, toDump)) {
                     logPolymorphicEvent(depth, "Set needs split to true via parent");
                     needsSplit = true;
-                    if (engine.traceSplittingSummary) {
-                        if (this.getContextualDispatchStatus() == ContextualDispatch.PART_OF_DISPATCH_TREE || this.getContextualDispatchStatus() == ContextualDispatch.DISPATCH_LOCATION) {
-                            this.getContext().invalidateContext();
+                    if (this.getContextualDispatchStatus() == ContextualDispatch.PART_OF_DISPATCH_TREE || this.getContextualDispatchStatus() == ContextualDispatch.DISPATCH_LOCATION) {
+                        this.getContext().invalidateContext();
+                        logMisprediction(depth);
+                        if (engine.traceSplittingSummary) {
                             TruffleSplittingStrategy.traceMisprediction(engine, this, this.getContext().getRootContextSignature()); // TODO - would be great to get the contextSignature of the root of the subtree as well (should have the two)
                         }
                     }
@@ -1731,9 +1733,10 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
             }
         } else { //when several callers, split targets but stop propagating
             logPolymorphicEvent(depth, "Set needs split to true");
-            if (engine.traceSplittingSummary) {
-                if (this.getContextualDispatchStatus() == ContextualDispatch.PART_OF_DISPATCH_TREE || this.getContextualDispatchStatus() == ContextualDispatch.DISPATCH_LOCATION) {
-                    this.getContext().invalidateContext();
+            if (this.getContextualDispatchStatus() == ContextualDispatch.PART_OF_DISPATCH_TREE || this.getContextualDispatchStatus() == ContextualDispatch.DISPATCH_LOCATION) {
+                this.getContext().invalidateContext();
+                logMisprediction(depth);
+                if (engine.traceSplittingSummary) {
                     TruffleSplittingStrategy.traceMisprediction(engine, this, this.getContext().getRootContextSignature());
                 }
             }
@@ -1749,6 +1752,13 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
     private void logEarlyReturn(int depth, int numberOfKnownCallNodes) {
         if (engine.splittingTraceEvents) {
             logPolymorphicEvent(depth, "Early return: " + needsSplit + " callCount: " + getCallCount() + ", numberOfKnownCallNodes: " + numberOfKnownCallNodes);
+        }
+    }
+
+    private void logMisprediction(int depth) {
+        if (engine.splittingTraceEvents) {
+            final String indent = new String(new char[depth]).replace("\0", "  ");
+            log(String.format(MIS_LOG_FORMAT, "Polymorphic event in " + this.getName()));
         }
     }
 
