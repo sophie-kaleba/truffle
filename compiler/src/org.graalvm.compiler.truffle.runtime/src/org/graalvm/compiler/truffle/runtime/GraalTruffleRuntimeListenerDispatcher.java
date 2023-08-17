@@ -51,15 +51,6 @@ final class GraalTruffleRuntimeListenerDispatcher extends CopyOnWriteArrayList<G
     }
 
     @Override
-    public void onContextualDispatch(OptimizedDirectCallNode callNode) {
-        invokeListeners((l) -> l.onContextualDispatch(callNode));
-    }
-
-    public void onSharedTargetAddition(OptimizedDirectCallNode callNode, OptimizedCallTarget targetsHolder, long currentContextSignature) {
-        invokeListeners((l) -> l.onSharedTargetAddition(callNode, targetsHolder, currentContextSignature));
-    }
-
-    @Override
     public void onCompilationSplit(OptimizedDirectCallNode callNode) {
         invokeListeners((l) -> l.onCompilationSplit(callNode));
     }

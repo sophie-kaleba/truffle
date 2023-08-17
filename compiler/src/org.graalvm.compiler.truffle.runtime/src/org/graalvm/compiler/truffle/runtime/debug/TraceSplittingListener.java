@@ -50,7 +50,6 @@ public final class TraceSplittingListener implements GraalTruffleRuntimeListener
     private int dispatchCount;
     private int addCount;
 
-    @Override
     public void onContextualDispatch(OptimizedDirectCallNode callNode) {
         OptimizedCallTarget callTarget = callNode.getCallTarget();
         if (callTarget.getOptionValue(PolyglotCompilerOptions.TraceSplitting)) {
