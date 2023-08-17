@@ -435,8 +435,8 @@ final class TruffleSplittingStrategy {
                     }
                 }
                 try (FileWriter fw = new FileWriter("splitting_statistics.log", true)) {
-                    fw.append("TotalSplitCount:" + (engineData.splitCount + stat.forcedSplitCount)+"\n");
-                    fw.append("UnforcedSplitCount:" + (engineData.splitCount)+"\n");
+                    fw.append("TotalSplitCount:" + (stat.splitCount + stat.forcedSplitCount)+"\n");
+                    fw.append("SumNodeCountForSplitTargets:" + (engineData.splitCount)+"\n");
                     fw.append("NodesCreatedThroughSplitting:" + stat.splitNodeCount+"\n");
                     fw.append("TotalNodesCreatedWithoutSplitting:" + stat.totalCreatedNodeCount+"\n");
                     fw.append("TotalNodesCreated:" + Node.numberOfNodesCreated+"\n");
