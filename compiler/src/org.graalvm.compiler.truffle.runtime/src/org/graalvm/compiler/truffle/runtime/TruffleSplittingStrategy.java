@@ -89,7 +89,6 @@ final class TruffleSplittingStrategy {
         if (splitTarget != null) { // Split occurred, and a new specialised subtree root can be stored
             splitTarget.setContextualDispatchStatus(RootCallTarget.ContextualDispatch.PART_OF_DISPATCH_TREE);
             dispatchLocation.addContextualPair(currentContextSignature, splitTarget);
-            OptimizedCallTarget.runtime().getListener().onSharedTargetAddition(call, dispatchLocation, currentContextSignature);
             if (engineData.traceSplittingSummary) {
                 traceSharing(engineData, dispatchLocation);
                 traceDispatching(engineData, splitTarget, currentContextSignature);
