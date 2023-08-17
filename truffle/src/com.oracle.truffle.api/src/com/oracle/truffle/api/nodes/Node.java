@@ -77,7 +77,7 @@ import com.oracle.truffle.api.source.SourceSection;
 public abstract class Node implements NodeInterface, Cloneable {
 
     public static long numberOfNodesCreated;
-//    private static AtomicLong numberOfNodesCreatedCounter = new AtomicLong(0);
+    private static AtomicLong numberOfNodesCreatedCounter = new AtomicLong(0);
 
     @CompilationFinal private volatile Node parent;
 
@@ -110,7 +110,7 @@ public abstract class Node implements NodeInterface, Cloneable {
     /** @since 0.8 or earlier */
     protected Node() {
         CompilerAsserts.neverPartOfCompilation("do not create a Node from compiled code");
-//        numberOfNodesCreated = numberOfNodesCreatedCounter.getAndIncrement();
+        numberOfNodesCreated = numberOfNodesCreatedCounter.getAndIncrement();
         assert NodeClass.get(getClass()) != null; // ensure NodeClass constructor does not throw
     }
 
