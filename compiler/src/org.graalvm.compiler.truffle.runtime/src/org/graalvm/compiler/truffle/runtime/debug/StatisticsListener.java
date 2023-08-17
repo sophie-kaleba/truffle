@@ -24,6 +24,8 @@
  */
 package org.graalvm.compiler.truffle.runtime.debug;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -409,6 +411,15 @@ public final class StatisticsListener extends AbstractGraalTruffleRuntimeListene
             }
 
         }
+
+        try (FileWriter fw = new FileWriter("splitting_statistics.log", true)) {
+            fw.append("Compilations:" + compilations+"\n");
+            fw.append("CompilationSuccesses:" + success+"\n");
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         TruffleLogger logger = runtimeData.getEngineLogger();
         logger.log(Level.INFO, logMessage.toString());
     }
