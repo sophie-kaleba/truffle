@@ -77,6 +77,9 @@ final class TruffleSplittingStrategy {
                 }
             } else if(currentTarget.getContextualDispatchStatus() == OptimizedCallTarget.ContextualDispatch.PART_OF_DISPATCH_TREE && !currentTarget.getContext().isValid) {
                 // there was a mispredict, the subtree is polluted and should not be relied upon anymore. Revert the binding, and split again.
+                if (engineData.traceSplittingSummary) {
+                    TruffleSplittingStrategy.traceMisprediction(engineData, currentTarget, currentTarget.getContext().getContextSignature());
+                }
                 OptimizedCallTarget sourceTarget = call.getCallTarget();
                 call.revertSplit(currentTarget, sourceTarget);
                 sourceTarget.deleteContextualPair(currentContextSignature);

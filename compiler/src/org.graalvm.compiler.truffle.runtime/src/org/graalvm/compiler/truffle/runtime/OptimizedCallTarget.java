@@ -1725,9 +1725,6 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
                     if (this.getContextualDispatchStatus() == ContextualDispatch.PART_OF_DISPATCH_TREE || this.getContextualDispatchStatus() == ContextualDispatch.DISPATCH_LOCATION) {
                         this.getContext().invalidateContext();
                         logMisprediction(depth);
-                        if (engine.traceSplittingSummary) {
-                            TruffleSplittingStrategy.traceMisprediction(engine, this, this.getContext().getRootContextSignature()); // TODO - would be great to get the contextSignature of the root of the subtree as well (should have the two)
-                        }
                     }
                 }
             }
@@ -1736,9 +1733,6 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
             if (this.getContextualDispatchStatus() == ContextualDispatch.PART_OF_DISPATCH_TREE || this.getContextualDispatchStatus() == ContextualDispatch.DISPATCH_LOCATION) {
                 this.getContext().invalidateContext();
                 logMisprediction(depth);
-                if (engine.traceSplittingSummary) {
-                    TruffleSplittingStrategy.traceMisprediction(engine, this, this.getContext().getRootContextSignature());
-                }
             }
             needsSplit = true;
             maybeDump(toDump);
