@@ -71,8 +71,11 @@ final class TruffleSplittingStrategy {
                     call.changeBinding(cachedRoot);
                     if (engineData.traceSplittingSummary) {
                         traceDispatching(engineData, cachedRoot, currentContextSignature);
+                        if (cachedRoot.isNeedsSplit()) {
+                            traceMisprediction(engineData, cachedRoot, currentContextSignature);
+                        }
                     }
-                    flagSharedTargets(cachedRoot, RECURSIVE_SPLIT_DEPTH, currentContextSignature);
+//                    flagSharedTargets(cachedRoot, RECURSIVE_SPLIT_DEPTH, currentContextSignature);
                 } else {
                     doSplit(engineData, call);
                     OptimizedCallTarget splitTarget = call.getClonedCallTarget();
