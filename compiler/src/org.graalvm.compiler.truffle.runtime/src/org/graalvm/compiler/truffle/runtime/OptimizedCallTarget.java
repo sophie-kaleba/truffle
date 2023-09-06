@@ -1721,20 +1721,10 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
                 if (callerTarget.maybeSetNeedsSplit(depth + 1, toDump)) {
                     logPolymorphicEvent(depth, "Set needs split to true via parent");
                     needsSplit = true;
-                    if (engine.traceSplittingSummary) {
-                        if (this.getContextualDispatchStatus() == ContextualDispatch.PART_OF_DISPATCH_TREE) {
-                            TruffleSplittingStrategy.traceMisprediction(engine, this, this.getContextSignature());
-                        }
-                    }
                 }
             }
         } else { //when several callers, split targets but stop propagating
             logPolymorphicEvent(depth, "Set needs split to true");
-            if (engine.traceSplittingSummary) {
-                if (this.getContextualDispatchStatus() == ContextualDispatch.PART_OF_DISPATCH_TREE) {
-                    TruffleSplittingStrategy.traceMisprediction(engine, this, this.getContextSignature());
-                }
-            }
             needsSplit = true;
             maybeDump(toDump);
         }
