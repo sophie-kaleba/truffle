@@ -84,13 +84,14 @@ final class TruffleSplittingStrategy {
                 sourceTarget.deleteContextualPair(currentContextSignature);
 
                 doSplit(engineData, call);
-//                OptimizedCallTarget splitTarget = call.getClonedCallTarget();
-//                createDispatchEntry(engineData, call, splitTarget, sourceTarget, currentContextSignature);
-//                if (engineData.traceSplittingSummary) {
-//                    traceRebinding(engineData, currentTarget, sourceTarget, currentContextSignature);
-//                }
             } else {
                 doSplit(engineData, call);
+                OptimizedCallTarget splitTarget = call.getClonedCallTarget();
+                // flag the original, non split target, as dispatch location
+                if (splitTarget != null) {
+                    currentTarget.setContextualDispatchStatus(OptimizedCallTarget.ContextualDispatch.DISPATCH_LOCATION);
+                    createDispatchEntry(engineData, call, splitTarget, currentTarget, currentContextSignature);
+                }
             }
         }
     }
