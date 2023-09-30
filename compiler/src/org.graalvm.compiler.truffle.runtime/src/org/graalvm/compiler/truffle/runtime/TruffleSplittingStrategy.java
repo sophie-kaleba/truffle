@@ -238,7 +238,7 @@ final class TruffleSplittingStrategy {
         if (!call.isCallTargetCloningAllowed()) {
             return false;
         }
-        if (call.getCallTarget().getContextualDispatchStatus() == RootCallTarget.ContextualDispatch.DISPATCH_LOCATION && !call.getCurrentCallTarget().getContext().isValid)  {
+        if (call.getCurrentCallTarget().getContextualDispatchStatus() == RootCallTarget.ContextualDispatch.SHARED && call.getCurrentCallTarget().isNeedsSplit())  {
             // TODO topi - really not sure about the precedence order here. Why would engine.splitting would come after anything anyway?
             // I've reshuffled - handle with care
             return true;
