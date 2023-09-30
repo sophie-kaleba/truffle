@@ -24,6 +24,7 @@
  */
 package org.graalvm.compiler.truffle.runtime;
 
+import com.oracle.truffle.api.RootCallTarget;
 import org.graalvm.compiler.truffle.common.TruffleCallNode;
 
 import com.oracle.truffle.api.CallTarget;
@@ -153,7 +154,8 @@ public final class OptimizedDirectCallNode extends DirectCallNode implements Tru
      *         made during this interpreter call, the argument target otherwise.
      */
     private OptimizedCallTarget onInterpreterCall(OptimizedCallTarget target, long contextSignature) {
-        if (target.isNeedsSplit() && (!splitDecided || !target.getContext().isValid)) {
+        // Add the SHARED check in the case of a misprediction
+        if (target.isNeedsSplit() && (!splitDecided || target.getContextualDispatchStatus() == RootCallTarget.ContextualDispatch.SHARED)) {
             // We intentionally avoid locking here because worst case is a double decision printed
             // and preventing that is not worth the performance impact of locking
             splitDecided = true;
