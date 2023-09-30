@@ -1722,24 +1722,14 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
                 if (callerTarget.maybeSetNeedsSplit(depth + 1, toDump)) {
                     logPolymorphicEvent(depth, "Set needs split to true via parent");
                     needsSplit = true;
-                    if (this.getContextualDispatchStatus() == ContextualDispatch.PART_OF_DISPATCH_TREE || this.getContextualDispatchStatus() == ContextualDispatch.DISPATCH_LOCATION) {
-                        this.getContext().invalidateContext();
-                        logMisprediction(depth);
-                    }
                 }
             }
         } else { //when several callers, split targets but stop propagating
             logPolymorphicEvent(depth, "Set needs split to true");
-            if (this.getContextualDispatchStatus() == ContextualDispatch.PART_OF_DISPATCH_TREE || this.getContextualDispatchStatus() == ContextualDispatch.DISPATCH_LOCATION) {
-                this.getContext().invalidateContext();
-                logMisprediction(depth);
-            }
             needsSplit = true;
             maybeDump(toDump);
         }
 
-        //if (depth > 0 && !this.isSplit()) this.contextualDispatchStatus = ContextualDispatch.DISPATCH_LOCATION; //TODO - check whether it flags the correct target
-        if (depth >= 0 && this.needsSplit) this.contextualDispatchStatus = ContextualDispatch.DISPATCH_LOCATION; //TODO - check whether it flags the correct target
         logPolymorphicEvent(depth, "Return:", needsSplit);
         return needsSplit;
     }
@@ -1747,13 +1737,6 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
     private void logEarlyReturn(int depth, int numberOfKnownCallNodes) {
         if (engine.splittingTraceEvents) {
             logPolymorphicEvent(depth, "Early return: " + needsSplit + " callCount: " + getCallCount() + ", numberOfKnownCallNodes: " + numberOfKnownCallNodes);
-        }
-    }
-
-    private void logMisprediction(int depth) {
-        if (engine.splittingTraceEvents) {
-            final String indent = new String(new char[depth]).replace("\0", "  ");
-            log(String.format(MIS_LOG_FORMAT, "Polymorphic event in " + this.getName()));
         }
     }
 

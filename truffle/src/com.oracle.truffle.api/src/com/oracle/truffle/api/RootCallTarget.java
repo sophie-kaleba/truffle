@@ -59,16 +59,10 @@ public interface RootCallTarget extends CallTarget {
 
         public long signature;
         public long rootContextSignature;
-        public boolean isValid;
 
         public ContextSignature(long signature) {
             this.signature = signature;
             this.rootContextSignature = signature; // a call target won't be necessarily part of a shared subtree
-            isValid = true;
-        }
-
-        public void invalidateContext() {
-            this.isValid = false;
         }
 
         public void setRootContextSignature(long signature) {
