@@ -69,13 +69,12 @@ final class TruffleSplittingStrategy {
                     if (engineData.traceSplittingSummary) {
                         traceDispatching(engineData, cachedRoot, currentContextSignature);
                     }
-                    flagSharedTargets(cachedRoot, RECURSIVE_SPLIT_DEPTH, currentContextSignature);
                 } else {
                     doSplit(engineData, call);
                     OptimizedCallTarget splitTarget = call.getClonedCallTarget();
                     createDispatchEntry(engineData, call, splitTarget, currentTarget, currentContextSignature);
                 }
-            } else if(currentTarget.getContextualDispatchStatus() == OptimizedCallTarget.ContextualDispatch.PART_OF_DISPATCH_TREE && !currentTarget.getContext().isValid) {
+            } else if(currentTarget.getContextualDispatchStatus() == OptimizedCallTarget.ContextualDispatch.SHARED) {
                 // there was a mispredict, the subtree is polluted and should not be relied upon anymore. Revert the binding, and split again.
                 if (engineData.traceSplittingSummary) {
                     TruffleSplittingStrategy.traceMisprediction(engineData, currentTarget, currentTarget.getContext().getContextSignature());
@@ -104,22 +103,6 @@ final class TruffleSplittingStrategy {
             if (engineData.traceSplittingSummary) {
                 traceSharing(engineData, dispatchLocation);
                 traceDispatching(engineData, splitTarget, currentContextSignature);
-            }
-        }
-    }
-
-    private static void flagSharedTargets(OptimizedCallTarget target, int depth, long rootSignature) {
-        // base case - leaf
-        TruffleCallNode[] callNodes = target.getCallNodes();
-        if (callNodes.length == 0 || depth == 0) return;
-
-        for (TruffleCallNode node : callNodes) {
-            OptimizedCallTarget t = (OptimizedCallTarget) node.getCurrentCallTarget();
-            if (t.isSplit()) {
-                // assert t.getContext().getContextSignature() == t.getContext().getRootContextSignature();
-                t.getContext().setRootContextSignature(rootSignature);
-                t.setContextualDispatchStatus(RootCallTarget.ContextualDispatch.PART_OF_DISPATCH_TREE);
-                flagSharedTargets(t, depth - 1, rootSignature);
             }
         }
     }
