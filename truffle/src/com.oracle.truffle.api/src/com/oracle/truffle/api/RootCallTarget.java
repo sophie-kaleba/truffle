@@ -52,7 +52,7 @@ public interface RootCallTarget extends CallTarget {
     enum ContextualDispatch {
         NONE,
         DISPATCH_LOCATION,
-        PART_OF_DISPATCH_TREE
+        SHARED
     }
 
     class ContextSignature {
