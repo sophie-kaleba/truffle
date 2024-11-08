@@ -63,10 +63,11 @@ final class TruffleSplittingStrategy {
         }
         if (shouldSplit(engineData, call)) {
             if (currentTarget.getContextualDispatchStatus() == ContextSignature.ContextualDispatchState.DISPATCH_LOCATION) {
+                // There are available pairs {Context, Split call-target} at this location
                 OptimizedCallTarget cachedRoot = currentTarget.lookfForContext(currentContextSignature);
                 if (cachedRoot != null) {
-                    // dispatching to specialised subtree
-                    call.changeBinding(cachedRoot);
+                    // A context matches, dispatching to a previously split method rather than splitting again
+                    call.changeBinding(cachedRoot);;
                     if (engineData.traceSplittingSummary) {
                         traceDispatching(engineData, cachedRoot, currentContextSignature);
                     }
@@ -86,9 +87,10 @@ final class TruffleSplittingStrategy {
 
                 doSplit(engineData, call);
             } else {
+                // On first split, associate the split method with the current context
                 doSplit(engineData, call);
                 OptimizedCallTarget splitTarget = call.getClonedCallTarget();
-                // flag the original, non split target, as dispatch location
+                // Flag the original, non split target, as dispatch location
                 if (splitTarget != null) {
                     currentTarget.setContextualDispatchState(ContextSignature.ContextualDispatchState.DISPATCH_LOCATION);
                     createDispatchEntry(engineData, call, splitTarget, currentTarget, currentContextSignature);
@@ -97,6 +99,10 @@ final class TruffleSplittingStrategy {
         }
     }
 
+    /**
+     * Associates a newly split method with the current context.
+     * The pair is stored in the original call-target, to be used for future calls
+     * */
     private static void createDispatchEntry(EngineData engineData, OptimizedDirectCallNode call, OptimizedCallTarget splitTarget,
                                             OptimizedCallTarget dispatchLocation, long currentContextSignature) {
         if (splitTarget != null) {
@@ -119,14 +125,16 @@ final class TruffleSplittingStrategy {
     private static void traceDispatching(EngineData engineData, OptimizedCallTarget target, long currentContextSignature) {
         synchronized (engineData.splittingStatistics) {
             engineData.splittingStatistics.dispatchCount++;
-            engineData.splittingStatistics.dispatchs.put(target.toString()+" "+currentContextSignature, engineData.splittingStatistics.dispatchs.getOrDefault(target.toString()+" "+currentContextSignature, 0) + 1);
+            engineData.splittingStatistics.dispatchs.put(target.toString()+" @context: "+currentContextSignature,
+                    engineData.splittingStatistics.dispatchs.getOrDefault(target.toString()+" @context: "+currentContextSignature, 0) + 1);
         }
     }
 
     public static void traceMisprediction(EngineData engineData, OptimizedCallTarget target, long currentContextSignature) {
         synchronized (engineData.splittingStatistics) {
             engineData.splittingStatistics.mispredictCounts++;
-            engineData.splittingStatistics.mispredicts.put(target.toString()+" "+currentContextSignature, engineData.splittingStatistics.mispredicts.getOrDefault(target.toString()+" "+currentContextSignature, 0) + 1);
+            engineData.splittingStatistics.mispredicts.put(target.toString()+" @context: "+currentContextSignature,
+                    engineData.splittingStatistics.mispredicts.getOrDefault(target.toString()+" @context: "+currentContextSignature, 0) + 1);
         }
     }
 
