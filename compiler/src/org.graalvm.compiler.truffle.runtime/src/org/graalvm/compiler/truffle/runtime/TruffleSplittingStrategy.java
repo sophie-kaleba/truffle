@@ -181,7 +181,6 @@ final class TruffleSplittingStrategy {
             return false;
         }
         if (isRecursiveSplit(call, RECURSIVE_SPLIT_DEPTH)) {
-            // TODO topi - no clue, have to check
             maybeTraceFail(engine, call, TruffleSplittingStrategy::recursiveSplitMessageFactory);
             return false;
         }
@@ -241,18 +240,16 @@ final class TruffleSplittingStrategy {
     }
 
     private static boolean canSplit(EngineData engine, OptimizedDirectCallNode call) {
+        if (call.getCurrentCallTarget().getContextualDispatchStatus() == ContextSignature.ContextualDispatchState.SHARED && call.getCurrentCallTarget().isNeedsSplit())  {
+            return true;
+        }
+        if (call.isCallTargetCloned()) {
+            return false;
+        }
         if (!engine.splitting) {
             return false;
         }
         if (!call.isCallTargetCloningAllowed()) {
-            return false;
-        }
-        if (call.getCurrentCallTarget().getContextualDispatchStatus() == RootCallTarget.ContextualDispatch.SHARED && call.getCurrentCallTarget().isNeedsSplit())  {
-            // TODO topi - really not sure about the precedence order here. Why would engine.splitting would come after anything anyway?
-            // I've reshuffled - handle with care
-            return true;
-        }
-        if (call.isCallTargetCloned()) {
             return false;
         }
         return true;

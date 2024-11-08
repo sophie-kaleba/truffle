@@ -210,7 +210,6 @@ public final class OptimizedDirectCallNode extends DirectCallNode implements Tru
                 replace(this, "Split call node");
             }
             splitCallTarget = null;
-            // OptimizedCallTarget.runtime().getListener().onContextualDispatch(this); //TODO - change this
         });
     }
 
