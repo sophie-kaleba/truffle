@@ -36,6 +36,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Supplier;
 
+import com.oracle.truffle.api.contextualdispatch.ContextSignature;
+import org.graalvm.collections.EconomicMap;
+import org.graalvm.collections.MapCursor;
 import org.graalvm.compiler.truffle.common.CompilableTruffleAST;
 import org.graalvm.compiler.truffle.common.TruffleCallNode;
 import org.graalvm.compiler.truffle.options.PolyglotCompilerOptions;
@@ -126,6 +129,7 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
     private static final WeakReference<OptimizedDirectCallNode> NO_CALL = new WeakReference<>(null);
     private static final WeakReference<OptimizedDirectCallNode> MULTIPLE_CALLS = null;
     private static final String SPLIT_LOG_FORMAT = "[poly-event] %-70s %s";
+    private static final String MIS_LOG_FORMAT = "[mispredict] %-70s";
     private static final int MAX_PROFILED_ARGUMENTS = 256;
 
     /** The AST to be executed when this call target is called. */
@@ -153,6 +157,7 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
      */
     private int callAndLoopCount;
     private int highestCompiledTier = 0;
+    private ContextSignature context;
 
     public void compiledTier(int tier) {
         highestCompiledTier = Math.max(highestCompiledTier, tier);
@@ -339,6 +344,9 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
     public final int id;
     private static final AtomicInteger idCounter = new AtomicInteger(0);
 
+    private ContextSignature.ContextualDispatchState contextualDispatchStateStatus;
+    @CompilationFinal private EconomicMap<Long, OptimizedCallTarget> contextualPairs = EconomicMap.create();
+
     protected OptimizedCallTarget(OptimizedCallTarget sourceCallTarget, RootNode rootNode) {
         assert sourceCallTarget == null || sourceCallTarget.sourceCallTarget == null : "Cannot create a clone of a cloned CallTarget";
         this.sourceCallTarget = sourceCallTarget;
@@ -350,6 +358,53 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
         // node(s).
         this.uninitializedNodeCount = isOSR() ? -1 : GraalRuntimeAccessor.NODES.adoptChildrenAndCount(rootNode);
         id = idCounter.getAndIncrement();
+        this.contextualDispatchStateStatus = ContextSignature.ContextualDispatchState.NONE;
+        this.context = new ContextSignature(this.hashCode());
+    }
+
+    @Override
+    public ContextSignature getContext() {
+        return this.context;
+    }
+
+    public void setContextualDispatchState(ContextSignature.ContextualDispatchState state) {
+        this.contextualDispatchStateStatus = state;
+    }
+
+    @Override
+    public void setContextSignature(long computeFingerprint) {
+        this.context.setSelfContextSignature(computeFingerprint);
+    }
+
+    @Override
+    public long getContextSignature() {
+        return this.context.getContextSignature();
+    }
+
+    public OptimizedCallTarget lookfForContext(long contextSignature) {
+        OptimizedCallTarget dispatchTarget = null;
+
+        if(this.contextualPairs.containsKey(contextSignature)) dispatchTarget = this.contextualPairs.get(contextSignature);
+        return dispatchTarget;
+    }
+
+    public void addContextualPair(long contextSignature, OptimizedCallTarget split) {
+        this.contextualPairs.put(contextSignature, split);
+    }
+
+    public void deleteContextualPair(long contextSignature) {
+        this.contextualPairs.removeKey(contextSignature);
+    }
+
+    public void deleteContextualPair(OptimizedCallTarget pollutedTarget) {
+        MapCursor<Long, OptimizedCallTarget> mc = this.contextualPairs.getEntries();
+        while(mc.advance()) {
+            OptimizedCallTarget currentTarget = mc.getValue();
+            if (currentTarget.id == pollutedTarget.id) {
+                mc.remove();
+                break;
+            }
+        }
     }
 
     final Assumption getNodeRewritingAssumption() {
@@ -358,6 +413,10 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
             assumption = initializeNodeRewritingAssumption();
         }
         return assumption;
+    }
+
+    public ContextSignature.ContextualDispatchState getContextualDispatchStatus() {
+        return this.contextualDispatchStateStatus;
     }
 
     @Override
@@ -1532,7 +1591,7 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
     public final OptimizedDirectCallNode getCallSiteForSplit() {
         if (isSplit()) {
             OptimizedDirectCallNode callNode = getSingleCallNode();
-            assert callNode != null;
+            assert callNode != null; // TODO @topi 2023-04-04 - does this invariant still hold with my changes?
             return callNode;
         } else {
             return null;

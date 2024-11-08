@@ -44,6 +44,7 @@ import static com.oracle.truffle.api.impl.DefaultTruffleRuntime.getRuntime;
 
 import com.oracle.truffle.api.RootCallTarget;
 import com.oracle.truffle.api.TruffleSafepoint;
+import com.oracle.truffle.api.contextualdispatch.ContextSignature;
 import com.oracle.truffle.api.frame.VirtualFrame;
 import com.oracle.truffle.api.impl.DefaultTruffleRuntime.DefaultFrameInstance;
 import com.oracle.truffle.api.nodes.EncapsulatingNodeReference;
@@ -60,10 +61,14 @@ public final class DefaultCallTarget implements RootCallTarget {
     private final RootNode rootNode;
     private volatile boolean initialized;
     private volatile boolean loaded;
+    private ContextSignature context;
+    private ContextSignature.ContextualDispatchState state;
 
     DefaultCallTarget(RootNode function) {
         this.rootNode = function;
         this.rootNode.adoptChildren();
+        this.context = new ContextSignature(this.hashCode());
+        this.state = ContextSignature.ContextualDispatchState.NONE;
     }
 
     @Override
@@ -73,6 +78,26 @@ public final class DefaultCallTarget implements RootCallTarget {
 
     public RootNode getRootNode() {
         return rootNode;
+    }
+
+    @Override
+    public void setContextualDispatchState(ContextSignature.ContextualDispatchState state) {
+        this.state = state;
+    }
+
+    @Override
+    public void setContextSignature(long computeFingerprint) {
+        this.context.setSelfContextSignature(computeFingerprint);
+    }
+
+    @Override
+    public long getContextSignature() {
+        return this.context.getContextSignature();
+    }
+
+    @Override
+    public ContextSignature getContext() {
+        return this.context;
     }
 
     Object callDirectOrIndirect(final Node callNode, Object... args) {

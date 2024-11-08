@@ -24,6 +24,7 @@
  */
 package org.graalvm.compiler.truffle.runtime;
 
+import com.oracle.truffle.api.contextualdispatch.ContextSignature;
 import org.graalvm.compiler.truffle.common.TruffleCallNode;
 
 import com.oracle.truffle.api.CallTarget;
@@ -45,6 +46,11 @@ public final class OptimizedDirectCallNode extends DirectCallNode implements Tru
     private int callCount;
     private boolean inliningForced;
     @CompilationFinal private Class<? extends Throwable> exceptionProfile;
+
+    public void setSplitCallTarget(OptimizedCallTarget splitCallTarget) {
+        this.splitCallTarget = splitCallTarget;
+    }
+
     @CompilationFinal private OptimizedCallTarget splitCallTarget;
     private volatile boolean splitDecided;
 
@@ -63,7 +69,7 @@ public final class OptimizedDirectCallNode extends DirectCallNode implements Tru
             incrementCallCount();
         }
         if (HostCompilerDirectives.inInterpreterFastPath()) {
-            target = onInterpreterCall(target);
+            target = onInterpreterCall(target, target.getContextSignature());
         }
         try {
             return target.callDirect(this, arguments);
@@ -147,12 +153,13 @@ public final class OptimizedDirectCallNode extends DirectCallNode implements Tru
      * @return The current call target (ie. getCurrentCallTarget) In case a splitting decision was
      *         made during this interpreter call, the argument target otherwise.
      */
-    private OptimizedCallTarget onInterpreterCall(OptimizedCallTarget target) {
-        if (target.isNeedsSplit() && !splitDecided) {
+    private OptimizedCallTarget onInterpreterCall(OptimizedCallTarget target, long contextSignature) {
+        // Add the SHARED check in the case of a misprediction
+        if (target.isNeedsSplit() && (!splitDecided || target.getContextualDispatchStatus() == ContextSignature.ContextualDispatchState.SHARED)) {
             // We intentionally avoid locking here because worst case is a double decision printed
             // and preventing that is not worth the performance impact of locking
             splitDecided = true;
-            TruffleSplittingStrategy.beforeCall(this, target);
+            TruffleSplittingStrategy.beforeCall(this, target, contextSignature);
             return getCurrentCallTarget();
         }
         return target;
@@ -188,6 +195,37 @@ public final class OptimizedDirectCallNode extends DirectCallNode implements Tru
             }
             splitCallTarget = splitTarget;
             OptimizedCallTarget.runtime().getListener().onCompilationSplit(this);
+        });
+    }
+
+    void revertSplit(OptimizedCallTarget oldTarget, OptimizedCallTarget sourceTarget) {
+        CompilerAsserts.neverPartOfCompilation();
+
+        atomic(() -> {
+            oldTarget.removeDirectCallNode(this);
+            sourceTarget.addDirectCallNode(this);
+
+            if (getParent() != null) {
+                // dummy replace to report the split, irrelevant if this node is not adopted
+                replace(this, "Split call node");
+            }
+            splitCallTarget = null;
+        });
+    }
+
+    void changeBinding(OptimizedCallTarget newTarget) {
+        CompilerAsserts.neverPartOfCompilation();
+
+        atomic(() -> {
+            OptimizedCallTarget currentTarget = getCallTarget();
+            currentTarget.removeDirectCallNode(this);
+            newTarget.addDirectCallNode(this);
+
+            if (getParent() != null) {
+                // dummy replace to report the split, irrelevant if this node is not adopted
+                replace(this, "Split call node");
+            }
+            splitCallTarget = newTarget;
         });
     }
 

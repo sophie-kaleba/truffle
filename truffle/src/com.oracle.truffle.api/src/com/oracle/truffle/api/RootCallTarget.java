@@ -40,6 +40,7 @@
  */
 package com.oracle.truffle.api;
 
+import com.oracle.truffle.api.contextualdispatch.ContextSignature;
 import com.oracle.truffle.api.nodes.RootNode;
 
 /**
@@ -49,6 +50,15 @@ import com.oracle.truffle.api.nodes.RootNode;
  * @since 0.8 or earlier
  */
 public interface RootCallTarget extends CallTarget {
+
     /** @since 0.8 or earlier */
     RootNode getRootNode();
+
+    void setContextSignature(long computeFingerprint);
+
+    void setContextualDispatchState(ContextSignature.ContextualDispatchState state);
+
+    long getContextSignature();
+
+    ContextSignature getContext();
 }

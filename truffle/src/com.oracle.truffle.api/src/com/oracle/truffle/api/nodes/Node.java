@@ -52,6 +52,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -73,6 +74,9 @@ import com.oracle.truffle.api.source.SourceSection;
  * @since 0.8 or earlier
  */
 public abstract class Node implements NodeInterface, Cloneable {
+
+    public static long numberOfNodesCreated;
+    private static AtomicLong numberOfNodesCreatedCounter = new AtomicLong(0);
 
     @CompilationFinal private volatile Node parent;
 
@@ -105,6 +109,7 @@ public abstract class Node implements NodeInterface, Cloneable {
     /** @since 0.8 or earlier */
     protected Node() {
         CompilerAsserts.neverPartOfCompilation("do not create a Node from compiled code");
+        numberOfNodesCreated = numberOfNodesCreatedCounter.getAndIncrement();
         assert NodeClass.get(getClass()) != null; // ensure NodeClass constructor does not throw
     }
 

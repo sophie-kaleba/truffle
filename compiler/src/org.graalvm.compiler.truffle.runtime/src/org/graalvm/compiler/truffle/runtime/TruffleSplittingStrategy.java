@@ -24,6 +24,8 @@
  */
 package org.graalvm.compiler.truffle.runtime;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -38,9 +40,11 @@ import java.util.function.BiFunction;
 import com.oracle.truffle.api.RootCallTarget;
 import com.oracle.truffle.api.TruffleLogger;
 import com.oracle.truffle.api.HostCompilerDirectives.InliningCutoff;
+import com.oracle.truffle.api.contextualdispatch.ContextSignature;
 import com.oracle.truffle.api.nodes.Node;
 import com.oracle.truffle.api.nodes.NodeUtil;
 import com.oracle.truffle.api.nodes.RootNode;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.logging.Level;
@@ -51,13 +55,85 @@ final class TruffleSplittingStrategy {
     private static final int RECURSIVE_SPLIT_DEPTH = 3;
 
     @InliningCutoff
-    static void beforeCall(OptimizedDirectCallNode call, OptimizedCallTarget currentTarget) {
+    static void beforeCall(OptimizedDirectCallNode call, OptimizedCallTarget currentTarget, long currentContextSignature) {
         final EngineData engineData = currentTarget.engine;
         if (engineData.traceSplittingSummary) {
             traceSplittingPreShouldSplit(engineData, currentTarget);
         }
         if (shouldSplit(engineData, call)) {
-            doSplit(engineData, call);
+            if (currentTarget.getContextualDispatchStatus() == ContextSignature.ContextualDispatchState.DISPATCH_LOCATION) {
+                // There are available pairs {Context, Split call-target} at this location
+                OptimizedCallTarget cachedRoot = currentTarget.lookfForContext(currentContextSignature);
+                if (cachedRoot != null) {
+                    // A context matches, dispatching to a previously split method rather than splitting again
+                    call.changeBinding(cachedRoot);;
+                    if (engineData.traceSplittingSummary) {
+                        traceDispatching(engineData, cachedRoot, currentContextSignature);
+                    }
+                } else {
+                    doSplit(engineData, call);
+                    OptimizedCallTarget splitTarget = call.getClonedCallTarget();
+                    createDispatchEntry(engineData, call, splitTarget, currentTarget, currentContextSignature);
+                }
+            } else if(currentTarget.getContextualDispatchStatus() == ContextSignature.ContextualDispatchState.SHARED) {
+                // Context misprediction: a lookup cache in a shared call-target is polluted and should not be relied upon anymore. Revert the binding, and split normally
+                if (engineData.traceSplittingSummary) {
+                    TruffleSplittingStrategy.traceMisprediction(engineData, currentTarget, currentTarget.getContext().getContextSignature());
+                }
+                OptimizedCallTarget sourceTarget = call.getCallTarget();
+                call.revertSplit(currentTarget, sourceTarget);
+                sourceTarget.deleteContextualPair(currentTarget);
+
+                doSplit(engineData, call);
+            } else {
+                // On first split, associate the split method with the current context
+                doSplit(engineData, call);
+                OptimizedCallTarget splitTarget = call.getClonedCallTarget();
+                // Flag the original, non split target, as dispatch location
+                if (splitTarget != null) {
+                    currentTarget.setContextualDispatchState(ContextSignature.ContextualDispatchState.DISPATCH_LOCATION);
+                    createDispatchEntry(engineData, call, splitTarget, currentTarget, currentContextSignature);
+                }
+            }
+        }
+    }
+
+    /**
+     * Associates a newly split method with the current context.
+     * The pair is stored in the original call-target, to be used for future calls
+     * */
+    private static void createDispatchEntry(EngineData engineData, OptimizedDirectCallNode call, OptimizedCallTarget splitTarget,
+                                            OptimizedCallTarget dispatchLocation, long currentContextSignature) {
+        if (splitTarget != null) {
+            splitTarget.setContextualDispatchState(ContextSignature.ContextualDispatchState.SHARED);
+            dispatchLocation.addContextualPair(currentContextSignature, splitTarget);
+            if (engineData.traceSplittingSummary) {
+                traceSharing(engineData, dispatchLocation);
+                traceDispatching(engineData, splitTarget, currentContextSignature);
+            }
+        }
+    }
+
+    private static void traceSharing(EngineData engineData, OptimizedCallTarget target) {
+        synchronized (engineData.splittingStatistics) {
+            engineData.splittingStatistics.numberOfSharedTargets++;
+            engineData.splittingStatistics.contexts.put(target, engineData.splittingStatistics.contexts.getOrDefault(target, 0) + 1);
+        }
+    }
+
+    private static void traceDispatching(EngineData engineData, OptimizedCallTarget target, long currentContextSignature) {
+        synchronized (engineData.splittingStatistics) {
+            engineData.splittingStatistics.dispatchCount++;
+            engineData.splittingStatistics.dispatchs.put(target.toString()+" @context: "+currentContextSignature,
+                    engineData.splittingStatistics.dispatchs.getOrDefault(target.toString()+" @context: "+currentContextSignature, 0) + 1);
+        }
+    }
+
+    public static void traceMisprediction(EngineData engineData, OptimizedCallTarget target, long currentContextSignature) {
+        synchronized (engineData.splittingStatistics) {
+            engineData.splittingStatistics.mispredictCounts++;
+            engineData.splittingStatistics.mispredicts.put(target.toString()+" @context: "+currentContextSignature,
+                    engineData.splittingStatistics.mispredicts.getOrDefault(target.toString()+" @context: "+currentContextSignature, 0) + 1);
         }
     }
 
@@ -90,7 +166,8 @@ final class TruffleSplittingStrategy {
         synchronized (engineData.splittingStatistics) {
             engineData.splittingStatistics.splitNodeCount += call.getCurrentCallTarget().getUninitializedNodeCount();
             engineData.splittingStatistics.splitCount++;
-            engineData.splittingStatistics.splitTargets.put(call.getCallTarget(), engineData.splittingStatistics.splitTargets.getOrDefault(call.getCallTarget(), 0) + 1);
+            engineData.splittingStatistics.splitTargets.put(call.getCallTarget(),
+                    engineData.splittingStatistics.splitTargets.getOrDefault(call.getCallTarget(), 0) + 1);
         }
     }
 
@@ -163,6 +240,9 @@ final class TruffleSplittingStrategy {
     }
 
     private static boolean canSplit(EngineData engine, OptimizedDirectCallNode call) {
+        if (call.getCurrentCallTarget().getContextualDispatchStatus() == ContextSignature.ContextualDispatchState.SHARED && call.getCurrentCallTarget().isNeedsSplit())  {
+            return true;
+        }
         if (call.isCallTargetCloned()) {
             return false;
         }
@@ -273,6 +353,10 @@ final class TruffleSplittingStrategy {
     static class SplitStatisticsData {
         final Map<Class<? extends Node>, Integer> polymorphicNodes = new HashMap<>();
         final Map<OptimizedCallTarget, Integer> splitTargets = new HashMap<>();
+        final Map<OptimizedCallTarget, Integer> contexts = new HashMap<>();
+        final Map<String, Integer> dispatchs = new HashMap<>();
+        final Map<String,Integer> mispredicts = new HashMap<>();
+        int mispredictCounts;
         int splitCount;
         int forcedSplitCount;
         int splitNodeCount;
@@ -280,6 +364,8 @@ final class TruffleSplittingStrategy {
         int totalCreatedNodeCount;
         int wastedNodeCount;
         int wastedTargetCount;
+        int dispatchCount;
+        int numberOfSharedTargets;
 
         SplitStatisticsData() {
         }
@@ -323,7 +409,35 @@ final class TruffleSplittingStrategy {
                     for (Map.Entry<Class<? extends Node>, Integer> entry : sortByIntegerValue(stat.polymorphicNodes).entrySet()) {
                         out.printf(D_LONG_FORMAT, entry.getKey(), entry.getValue());
                     }
+
+                    out.printf(DELIMITER_FORMAT, "NUMBER OF CONTEXTS PER TARGETS");
+                    for (Entry<OptimizedCallTarget, Integer> entry : sortByIntegerValue(stat.contexts).entrySet()) {
+                        out.printf(D_LONG_FORMAT, entry.getKey(), entry.getValue());
+                    }
+
+                    out.printf(DELIMITER_FORMAT, "DISPATCHES");
+                    for (Entry<String, Integer> entry : sortByIntegerValue(stat.dispatchs).entrySet()) {
+                        out.printf(D_LONG_FORMAT, entry.getKey(), entry.getValue());
+                    }
+
+                    out.printf(DELIMITER_FORMAT, "MISPREDICTS");
+                    for (Entry<String, Integer> entry : sortByIntegerValue(stat.mispredicts).entrySet()) {
+                        out.printf(D_LONG_FORMAT, entry.getKey(), entry.getValue());
+                    }
                 }
+                try (FileWriter fw = new FileWriter("splitting_statistics.log", true)) {
+                    fw.append("TotalSplitCount:" + (stat.splitCount + stat.forcedSplitCount)+"\n");
+                    fw.append("SumNodeCountForSplitTargets:" + (engineData.splitCount)+"\n");
+                    fw.append("NodesCreatedThroughSplitting:" + stat.splitNodeCount+"\n");
+                    fw.append("TotalNodesCreatedWithoutSplitting:" + stat.totalCreatedNodeCount+"\n");
+                    fw.append("TotalNodesCreated:" + Node.numberOfNodesCreated+"\n");
+                    fw.append("DispatchCount:" + stat.dispatchCount+"\n");
+                    fw.append("SharedTargetsCount:" + stat.numberOfSharedTargets+"\n");
+                    fw.append("MispredictsCount:" + stat.mispredictCounts+"\n");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
                 final TruffleLogger log = engineData.getEngineLogger();
                 log.log(Level.INFO, messageBuilder.toString());
             }
