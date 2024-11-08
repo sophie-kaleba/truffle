@@ -1737,7 +1737,7 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
                     needsSplit = true;
                 }
             }
-        } else { //when several callers, split targets but stop propagating
+        } else {
             logPolymorphicEvent(depth, "Set needs split to true");
             needsSplit = true;
             maybeDump(toDump);

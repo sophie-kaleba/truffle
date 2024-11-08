@@ -33,7 +33,6 @@ import org.graalvm.compiler.truffle.common.TruffleCompilerListener;
 import org.graalvm.compiler.truffle.common.TruffleInliningData;
 
 import com.oracle.truffle.api.frame.Frame;
-import org.graalvm.compiler.truffle.runtime.debug.StatisticsListener;
 
 /**
  * A collection for broadcasting {@link GraalTruffleRuntimeListener} events and converting
