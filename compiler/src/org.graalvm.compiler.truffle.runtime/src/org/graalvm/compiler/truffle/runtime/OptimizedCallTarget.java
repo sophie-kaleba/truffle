@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Supplier;
 
+import com.oracle.truffle.api.contextualdispatch.ContextSignature;
 import org.graalvm.collections.EconomicMap;
 import org.graalvm.compiler.truffle.common.CompilableTruffleAST;
 import org.graalvm.compiler.truffle.common.TruffleCallNode;
@@ -342,7 +343,7 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
     public final int id;
     private static final AtomicInteger idCounter = new AtomicInteger(0);
 
-    private ContextualDispatch contextualDispatchStatus;
+    private ContextSignature.ContextualDispatchState contextualDispatchStateStatus;
     @CompilationFinal private EconomicMap<Long, OptimizedCallTarget> contextualPairs = EconomicMap.create();
 
     protected OptimizedCallTarget(OptimizedCallTarget sourceCallTarget, RootNode rootNode) {
@@ -356,7 +357,7 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
         // node(s).
         this.uninitializedNodeCount = isOSR() ? -1 : GraalRuntimeAccessor.NODES.adoptChildrenAndCount(rootNode);
         id = idCounter.getAndIncrement();
-        this.contextualDispatchStatus = ContextualDispatch.NONE;
+        this.contextualDispatchStateStatus = ContextSignature.ContextualDispatchState.NONE;
         this.context = new ContextSignature(this.hashCode());
     }
 
@@ -365,8 +366,8 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
         return this.context;
     }
 
-    public void setContextualDispatchStatus(ContextualDispatch status) {
-        this.contextualDispatchStatus = status;
+    public void setContextualDispatchState(ContextSignature.ContextualDispatchState state) {
+        this.contextualDispatchStateStatus = state;
     }
 
     @Override
@@ -402,8 +403,8 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
         return assumption;
     }
 
-    public ContextualDispatch getContextualDispatchStatus() {
-        return this.contextualDispatchStatus;
+    public ContextSignature.ContextualDispatchState getContextualDispatchStatus() {
+        return this.contextualDispatchStateStatus;
     }
 
     @Override

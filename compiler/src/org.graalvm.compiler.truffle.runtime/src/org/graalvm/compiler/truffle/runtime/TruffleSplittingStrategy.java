@@ -40,6 +40,7 @@ import java.util.function.BiFunction;
 import com.oracle.truffle.api.RootCallTarget;
 import com.oracle.truffle.api.TruffleLogger;
 import com.oracle.truffle.api.HostCompilerDirectives.InliningCutoff;
+import com.oracle.truffle.api.contextualdispatch.ContextSignature;
 import com.oracle.truffle.api.nodes.Node;
 import com.oracle.truffle.api.nodes.NodeUtil;
 import com.oracle.truffle.api.nodes.RootNode;
@@ -61,7 +62,7 @@ final class TruffleSplittingStrategy {
             traceSplittingPreShouldSplit(engineData, currentTarget);
         }
         if (shouldSplit(engineData, call)) {
-            if (currentTarget.getContextualDispatchStatus() == OptimizedCallTarget.ContextualDispatch.DISPATCH_LOCATION) {
+            if (currentTarget.getContextualDispatchStatus() == ContextSignature.ContextualDispatchState.DISPATCH_LOCATION) {
                 OptimizedCallTarget cachedRoot = currentTarget.lookfForContext(currentContextSignature);
                 if (cachedRoot != null) {
                     // dispatching to specialised subtree
@@ -74,8 +75,8 @@ final class TruffleSplittingStrategy {
                     OptimizedCallTarget splitTarget = call.getClonedCallTarget();
                     createDispatchEntry(engineData, call, splitTarget, currentTarget, currentContextSignature);
                 }
-            } else if(currentTarget.getContextualDispatchStatus() == OptimizedCallTarget.ContextualDispatch.SHARED) {
-                // there was a mispredict, the subtree is polluted and should not be relied upon anymore. Revert the binding, and split again.
+            } else if(currentTarget.getContextualDispatchStatus() == ContextSignature.ContextualDispatchState.SHARED) {
+                // Context misprediction: a lookup cache in a shared call-target is polluted and should not be relied upon anymore. Revert the binding, and split normally
                 if (engineData.traceSplittingSummary) {
                     TruffleSplittingStrategy.traceMisprediction(engineData, currentTarget, currentTarget.getContext().getContextSignature());
                 }
@@ -89,7 +90,7 @@ final class TruffleSplittingStrategy {
                 OptimizedCallTarget splitTarget = call.getClonedCallTarget();
                 // flag the original, non split target, as dispatch location
                 if (splitTarget != null) {
-                    currentTarget.setContextualDispatchStatus(OptimizedCallTarget.ContextualDispatch.DISPATCH_LOCATION);
+                    currentTarget.setContextualDispatchState(ContextSignature.ContextualDispatchState.DISPATCH_LOCATION);
                     createDispatchEntry(engineData, call, splitTarget, currentTarget, currentContextSignature);
                 }
             }
@@ -98,8 +99,8 @@ final class TruffleSplittingStrategy {
 
     private static void createDispatchEntry(EngineData engineData, OptimizedDirectCallNode call, OptimizedCallTarget splitTarget,
                                             OptimizedCallTarget dispatchLocation, long currentContextSignature) {
-        if (splitTarget != null) { // Split occurred, and a new specialised subtree root can be stored
-            splitTarget.setContextualDispatchStatus(RootCallTarget.ContextualDispatch.SHARED);
+        if (splitTarget != null) {
+            splitTarget.setContextualDispatchState(ContextSignature.ContextualDispatchState.SHARED);
             dispatchLocation.addContextualPair(currentContextSignature, splitTarget);
             if (engineData.traceSplittingSummary) {
                 traceSharing(engineData, dispatchLocation);

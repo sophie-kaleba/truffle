@@ -44,6 +44,7 @@ import static com.oracle.truffle.api.impl.DefaultTruffleRuntime.getRuntime;
 
 import com.oracle.truffle.api.RootCallTarget;
 import com.oracle.truffle.api.TruffleSafepoint;
+import com.oracle.truffle.api.contextualdispatch.ContextSignature;
 import com.oracle.truffle.api.frame.VirtualFrame;
 import com.oracle.truffle.api.impl.DefaultTruffleRuntime.DefaultFrameInstance;
 import com.oracle.truffle.api.nodes.EncapsulatingNodeReference;
@@ -61,13 +62,13 @@ public final class DefaultCallTarget implements RootCallTarget {
     private volatile boolean initialized;
     private volatile boolean loaded;
     private ContextSignature context;
-    private ContextualDispatch status;
+    private ContextSignature.ContextualDispatchState state;
 
     DefaultCallTarget(RootNode function) {
         this.rootNode = function;
         this.rootNode.adoptChildren();
         this.context = new ContextSignature(this.hashCode());
-        this.status = ContextualDispatch.NONE;
+        this.state = ContextSignature.ContextualDispatchState.NONE;
     }
 
     @Override
@@ -80,8 +81,8 @@ public final class DefaultCallTarget implements RootCallTarget {
     }
 
     @Override
-    public void setContextualDispatchStatus(ContextualDispatch status) {
-        this.status = status;
+    public void setContextualDispatchState(ContextSignature.ContextualDispatchState state) {
+        this.state = state;
     }
 
     @Override
