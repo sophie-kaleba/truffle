@@ -44,7 +44,6 @@ import com.oracle.truffle.api.contextualdispatch.ContextSignature;
 import com.oracle.truffle.api.nodes.Node;
 import com.oracle.truffle.api.nodes.NodeUtil;
 import com.oracle.truffle.api.nodes.RootNode;
-import org.graalvm.compiler.truffle.common.TruffleCallNode;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -167,7 +166,8 @@ final class TruffleSplittingStrategy {
         synchronized (engineData.splittingStatistics) {
             engineData.splittingStatistics.splitNodeCount += call.getCurrentCallTarget().getUninitializedNodeCount();
             engineData.splittingStatistics.splitCount++;
-            engineData.splittingStatistics.splitTargets.put(call.getCallTarget(), engineData.splittingStatistics.splitTargets.getOrDefault(call.getCallTarget(), 0) + 1);
+            engineData.splittingStatistics.splitTargets.put(call.getCallTarget(),
+                    engineData.splittingStatistics.splitTargets.getOrDefault(call.getCallTarget(), 0) + 1);
         }
     }
 
@@ -356,8 +356,6 @@ final class TruffleSplittingStrategy {
         final Map<OptimizedCallTarget, Integer> contexts = new HashMap<>();
         final Map<String, Integer> dispatchs = new HashMap<>();
         final Map<String,Integer> mispredicts = new HashMap<>();
-        final Map<String,Integer> rebindings = new HashMap<>();
-        int rebindingCounts;
         int mispredictCounts;
         int splitCount;
         int forcedSplitCount;
