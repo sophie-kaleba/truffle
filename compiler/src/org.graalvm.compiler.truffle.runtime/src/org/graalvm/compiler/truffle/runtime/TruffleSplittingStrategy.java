@@ -82,7 +82,7 @@ final class TruffleSplittingStrategy {
                 }
                 OptimizedCallTarget sourceTarget = call.getCallTarget();
                 call.revertSplit(currentTarget, sourceTarget);
-                sourceTarget.deleteContextualPair(currentContextSignature);
+                sourceTarget.deleteContextualPair(currentTarget);
 
                 doSplit(engineData, call);
             } else {

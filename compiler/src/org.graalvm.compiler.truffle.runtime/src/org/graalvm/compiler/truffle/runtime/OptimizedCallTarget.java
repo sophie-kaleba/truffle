@@ -38,6 +38,7 @@ import java.util.function.Supplier;
 
 import com.oracle.truffle.api.contextualdispatch.ContextSignature;
 import org.graalvm.collections.EconomicMap;
+import org.graalvm.collections.MapCursor;
 import org.graalvm.compiler.truffle.common.CompilableTruffleAST;
 import org.graalvm.compiler.truffle.common.TruffleCallNode;
 import org.graalvm.compiler.truffle.options.PolyglotCompilerOptions;
@@ -393,6 +394,17 @@ public abstract class OptimizedCallTarget implements CompilableTruffleAST, RootC
 
     public void deleteContextualPair(long contextSignature) {
         this.contextualPairs.removeKey(contextSignature);
+    }
+
+    public void deleteContextualPair(OptimizedCallTarget pollutedTarget) {
+        MapCursor<Long, OptimizedCallTarget> mc = this.contextualPairs.getEntries();
+        while(mc.advance()) {
+            OptimizedCallTarget currentTarget = mc.getValue();
+            if (currentTarget.id == pollutedTarget.id) {
+                mc.remove();
+                break;
+            }
+        }
     }
 
     final Assumption getNodeRewritingAssumption() {
